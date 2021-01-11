@@ -30,8 +30,12 @@ object Platform {
                       |date
                       |${spec.commands.mkString("\n")}
                       |""".stripMargin)
+
+    // PBS can't handle absolute for out/err file (although relative path works for some reason)
+    val prefix = spec.outPrefix.name
     Vector(
-      s"""qsub -o "${spec.outPrefix}.out" -e "${spec.outPrefix}.err" -N "${spec.name.take(
+      s"cd ${spec.outPrefix.parent}",
+      s"""qsub -o "$prefix.out" -e "$prefix.err" -N "${spec.name.take(
         PbsProNameLengthLimit
       )}" -V "$job" """
     )
