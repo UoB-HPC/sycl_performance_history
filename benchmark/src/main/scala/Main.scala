@@ -1,5 +1,6 @@
 import better.files.File
 
+import java.nio.file.attribute.PosixFilePermission
 import scala.collection.parallel.CollectionConverters._
 import scala.util.matching.Regex
 
@@ -42,7 +43,7 @@ object Main {
     )
 
     val scriptContent =
-      s"""|#!/bin/bash"
+      s"""|#!/bin/bash
           |set -eu
           |
           |prepare() {
@@ -69,6 +70,8 @@ object Main {
 
     val script = buildsDir / s"benchmark-$id.sh"
     script.createFileIfNotExists().overwrite(scriptContent)
+    script.addPermission(PosixFilePermission.OWNER_EXECUTE)
+
     import scala.sys.process._
 
     (

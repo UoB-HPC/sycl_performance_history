@@ -1,6 +1,8 @@
 import Platform.JobSpec
 import better.files.File
 
+import java.nio.file.Paths
+
 sealed abstract class Platform(
     val name: String,
     val abbr: String,
@@ -31,13 +33,21 @@ object Platform {
                       |${spec.commands.mkString("\n")}
                       |""".stripMargin)
 
-    // PBS can't handle absolute for out/err file (although relative path works for some reason)
-    val prefix = spec.outPrefix.name
+    // PBS can't handle path with lustre included for some reason
+    def normalisePbsPath(f: File) = {
+      val absoluteHome  = Paths.get("/lustre/home")
+      val symlinkedHome = Paths.get("/home")
+      if (f.path.startsWith(absoluteHome)) {
+        val g = symlinkedHome.resolve(absoluteHome.relativize(f.path))
+        println(s"Translating PBS path: $f -> $g")
+        File(g)
+      } else f
+    }
+    val prefix = normalisePbsPath(spec.outPrefix)
     Vector(
-      s"cd ${spec.outPrefix.parent}",
       s"""qsub -o "$prefix.out" -e "$prefix.err" -N "${spec.name.take(
         PbsProNameLengthLimit
-      )}" -V "$job" """
+      )}" -V "${normalisePbsPath(job)}" """
     )
   }
 
