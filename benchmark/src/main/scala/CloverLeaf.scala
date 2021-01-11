@@ -14,13 +14,13 @@ object CloverLeaf {
     val prelude =
       Vector(s"cd ${repo.^?} ", s"export $runlineEnv") ++
         (platform match {
-          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.modules
-          case Local                              => Vector()
+          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
+          case _                                  => Vector()
         })
 
     val mpiPath = platform match {
       case RomeIsambardMACS | CxlIsambardMACS => Platform.IsambardMACS.oneapiMPIPath
-      case _                                  => Platform.Local.oneapiMPIPath
+      case l: Local                           => l.oneapiMPIPath
     }
 
     val build = cmake(
@@ -38,7 +38,7 @@ object CloverLeaf {
     val deviceName = platform match {
       case RomeIsambardMACS => "AMD"
       case CxlIsambardMACS  => "Xeon"
-      case Local            => s"Ryzen"
+      case l: Local         => l.deviceSubstring
     }
 
     (
@@ -52,9 +52,10 @@ object CloverLeaf {
 
   val Def = Project(
     "cloverleaf",
+    "c",
     "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
     {
-      case (repo, platform, Sycl.ComputeCpp(computepp, oclcpu, tbb, _)) =>
+      case (repo, platform, Sycl.ComputeCpp(computepp, oclcpu, tbb, _, _)) =>
         setup(
           repo,
           platform,
@@ -67,7 +68,7 @@ object CloverLeaf {
           LD_LIBRARY_PATH_=(tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
         )
 
-      case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _)) =>
+      case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
         setup(
           repo,
           platform,
@@ -75,11 +76,11 @@ object CloverLeaf {
             "SYCL_RUNTIME"    -> "DPCPP",
             "DPCPP_BIN"       -> (dpcpp / "bin" / "clang++").!!,
             "DPCPP_INCLUDE"   -> (dpcpp / "include" / "sycl").!!,
-            "CXX_EXTRA_FLAGS" -> s"-fsycl"
+            "CXX_EXTRA_FLAGS" -> s"-fsycl  --gcc-toolchain=$EvalGCCPathExpr"
           ),
           LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
         )
-      case (wd, p, Sycl.hipSYCL(path, _)) => ???
+      case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
     }
   )
 }

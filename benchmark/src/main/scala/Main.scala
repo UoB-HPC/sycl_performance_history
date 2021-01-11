@@ -33,8 +33,8 @@ object Main {
 
     val submitJob = platform.submit(
       Platform.JobSpec(
-        jobFile = (buildsDir / s"run-$id.job"),
-        name = id,
+        jobFile = buildsDir / s"run-$id.job",
+        name = s"${project.abbr}-${platform.abbr}-${sycl.abbr}",
         runDir = runDir,
         commands = exec,
         outPrefix = resultsDir / id
@@ -80,11 +80,13 @@ object Main {
 
   case class Project(
       name: String,
+      abbr: String,
       gitRepo: (String, String),
       run: PartialFunction[(File, Platform, Sycl), (Vector[String], File, Vector[String])]
   )
 
-  val Projects = Vector(Bude.Def, CloverLeaf.Def, BabelStream.Def)
+  val Projects  = Vector(Bude.Def, CloverLeaf.Def, BabelStream.Def)
+  val Platforms = Vector(Platform.RomeIsambardMACS, Platform.CxlIsambardMACS, Platform.LocalAMDCPU)
 
   def globToRegexLite(glob: String): Regex =
     ("^" + glob.flatMap {
@@ -110,10 +112,11 @@ object Main {
                  |help                     - print this help
                  |prime                    - download/copy compilers and prime them for use
                  |  <pool:dir>               - directory containing ComputeCpp tarballs
-                 |list                     - lists all SYCL compilers and projects
+                 |list                     - lists all SYCL compilers, platforms,  and projects
                  |bench                    - run benchmarks
-                 |  [<project:string>|all]   - the projects to run
-                 |  <sycl:glob>              - blob pattern of the sycl config tuple to use
+                 |  [<project:string>|all]   - the projects to run, see `list`
+                 |  <sycl:glob>              - blob pattern of the sycl config tuple to use, see `list`
+                 |  <platform:glob>          - the platforms to run on, see `list` 
                  |  <out:dir>                - output directory for results and intermediate build files
                  |  <par:bool>               - compile projects in parallel
                  |""".stripMargin)
@@ -128,38 +131,47 @@ object Main {
       case "list" :: Nil =>
         val syclImpls = Sycl.list(oclcpu, dpcpp, computecpp)
         println(s"""
-                   |projects  :${Projects
+                   |Sycl impl. :${syclImpls
+          .map(s =>
+            s"${s.key} (${s.abbr}, ${s.paths.map { case (k, p) => s"$k=$p" }.mkString(", ")})"
+          )
+          .mkString("\n\t", "\n\t", "")}
+                   |
+				   |Projects   :${Projects
           .map(p => s"${p.name} (${p.gitRepo})")
           .mkString("\n\t", "\n\t", "")}
-                   |sycl impl :${syclImpls
-          .map(s => s"${s.key} (${s.paths.map { case (k, p) => s"$k=$p" }.mkString(", ")})")
-          .mkString("\n\t", "\n\t", "")}
+				   |
+				   |Platforms  :${Platforms
+          .map(p => s"${p.name} (${p.abbr})")
+          .mkString("\n\t", "\n\t", "")} 
+				   |
                    |""".stripMargin)
       case "prime" :: poolPath :: Nil =>
         val pool = resolve(poolPath, "pool")
         Sycl.primeOclCpu(oclcpu)
         Sycl.primeComputeCpp(Some(pool), computecpp)
         Sycl.primeDPCPP(dpcpp)
-      case "bench" :: project :: syclGlob :: outDir :: par :: Nil =>
-        val out  = File(outDir).createDirectoryIfNotExists()
-        val glob = globToRegexLite(syclGlob)
-
-        val projects = project.toLowerCase match {
-          case "all"  => Projects
-          case needle => Projects.filter(_.name == needle)
-        }
-        val sycls = Sycl.list(oclcpu, dpcpp, computecpp).filter(s => glob.matches(s.key))
+      case "bench" :: project :: syclGlob :: platformGlob :: outDir :: par :: Nil =>
+        val out           = File(outDir).createDirectoryIfNotExists()
+        val syclRegex     = globToRegexLite(syclGlob)
+        val platformRegex = globToRegexLite(platformGlob)
 
         val (preps, runs) =
           (for {
-            p <- projects
-            s <- sycls
-          } yield runProject(p, Platform.Local, s, out)).unzip
+            proj <- project.toLowerCase match {
+              case "all"  => Projects
+              case needle => Projects.filter(_.name == needle)
+            }
+            sycl <- Sycl.list(oclcpu, dpcpp, computecpp).filter(s => syclRegex.matches(s.key))
+
+            platform <- Platforms.filter(p => platformRegex.matches(p.name))
+
+          } yield runProject(proj, platform, sycl, out)).unzip
 
         val parallel = par.toLowerCase match {
           case "true" | "ON" | "1"   => true
           case "false" | "OFF" | "0" => false
-          case bad                   => throw new Exception(s"can't parse ${bad} for boolean")
+          case bad                   => throw new Exception(s"can't parse $bad for boolean")
         }
 
         if (parallel) preps.par.foreach(_())
@@ -176,8 +188,10 @@ object Main {
 
   def main(args: Array[String]): Unit =
     run(args.toList)
-//    run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
-//    run("bench" :: "all" :: "dpcpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
-//    run("bench" :: "all" :: "computecpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
+  //    run("list" :: Nil)
+  //    run("bench" :: "bude" :: "dpcpp-*-oclcpu-202006"  :: "local-amd":: "./test" :: "true" :: Nil)
+  //    run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
+  //    run("bench" :: "all" :: "dpcpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
+  //    run("bench" :: "all" :: "computecpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
 
 }

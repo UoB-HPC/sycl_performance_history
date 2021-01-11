@@ -27,4 +27,6 @@ object SC {
       .mkString(" ")} -j ${sys.runtime.availableProcessors}"
   )
 
+  val EvalGCCPathExpr: String = """$(realpath "$(dirname "$(which gcc)")"/..)"""
+
 }

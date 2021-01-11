@@ -15,8 +15,8 @@ object BabelStream {
     val prelude =
       Vector(s"cd ${repo.^?} ", s"export $runlineEnv") ++
         (platform match {
-          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.modules
-          case Local                              => Vector()
+          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
+          case _                                  => Vector()
         })
 
     val build = make(
@@ -27,7 +27,7 @@ object BabelStream {
     val deviceName = platform match {
       case RomeIsambardMACS => "AMD"
       case CxlIsambardMACS  => "Xeon"
-      case Local            => s"Ryzen"
+      case l: Local         => l.deviceSubstring
     }
 
     val exe = (repo / "sycl-stream").^?
@@ -45,9 +45,10 @@ object BabelStream {
 
   val Def = Project(
     "babelstream",
+    "s",
     "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
     {
-      case (repo, platform, Sycl.ComputeCpp(computepp, oclcpu, tbb, _)) =>
+      case (repo, platform, Sycl.ComputeCpp(computepp, oclcpu, tbb, _, _)) =>
         setup(
           repo,
           platform,
@@ -60,7 +61,7 @@ object BabelStream {
           LD_LIBRARY_PATH_=(tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
         )
 
-      case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _)) =>
+      case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
         setup(
           repo,
           platform,
@@ -69,11 +70,11 @@ object BabelStream {
             "TARGET"             -> "CPU",
             "SYCL_DPCPP_CXX"     -> (dpcpp / "bin" / "clang++").!!,
             "SYCL_DPCPP_INCLUDE" -> s"-I${(dpcpp / "include" / "sycl").!!}",
-            "EXTRA_FLAGS"        -> "-DCL_TARGET_OPENCL_VERSION=220 -fsycl"
+            "EXTRA_FLAGS"        -> s"-DCL_TARGET_OPENCL_VERSION=220 -fsycl  --gcc-toolchain=$EvalGCCPathExpr"
           ),
           LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
         )
-      case (wd, p, Sycl.hipSYCL(path, _)) => ???
+      case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
     }
   )
 }

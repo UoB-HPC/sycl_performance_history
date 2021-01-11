@@ -5,16 +5,18 @@ import scala.collection.parallel.CollectionConverters._
 
 sealed trait Sycl {
   def key: String
+  def abbr: String
   def paths: Vector[(String, File)]
 }
 object Sycl {
-  case class ComputeCpp(computepp: File, oclcpu: File, tbb: File, key: String) extends Sycl {
+  case class ComputeCpp(computepp: File, oclcpu: File, tbb: File, key: String, abbr: String)
+      extends Sycl {
     def paths = Vector("compute++" -> computepp)
   }
-  case class DPCPP(dpcpp: File, oclcpu: File, tbb: File, key: String) extends Sycl {
+  case class DPCPP(dpcpp: File, oclcpu: File, tbb: File, key: String, abbr: String) extends Sycl {
     def paths = Vector("dpcpp" -> dpcpp, "oclcpu" -> oclcpu, "tbb" -> tbb)
   }
-  case class hipSYCL(path: File, key: String) extends Sycl {
+  case class hipSYCL(path: File, key: String, abbr: String) extends Sycl {
     def paths = Vector("dir" -> path)
   }
 
@@ -40,8 +42,14 @@ object Sycl {
       .flatMap(dpcpp =>
         dpcpp.name match {
           case s"dpcpp-compiler.$yyyymmdd" =>
-            oclcpus.map { case (oclcpuyyyymmm, oclcpu) =>
-              Sycl.DPCPP(dpcpp, oclcpu, tbb, s"dpcpp-$yyyymmdd-oclcpu-$oclcpuyyyymmm")
+            oclcpus.map { case (oclcpuyyyymm, oclcpu) =>
+              Sycl.DPCPP(
+                dpcpp,
+                oclcpu,
+                tbb,
+                s"dpcpp-$yyyymmdd-oclcpu-$oclcpuyyyymm",
+                s"d${yyyymmdd}o$oclcpuyyyymm"
+              )
             }
           case _ => Vector()
         }
@@ -51,8 +59,14 @@ object Sycl {
       .flatMap { computepp =>
         computepp.name.toLowerCase match {
           case s"computecpp-ce-$ver-$_" =>
-            oclcpus.map { case (oclcpuyyyymmm, oclcpu) =>
-              Sycl.ComputeCpp(computepp, oclcpu, tbb, s"computecpp-$ver-oclcpu-$oclcpuyyyymmm")
+            oclcpus.map { case (oclcpuyyyymm, oclcpu) =>
+              Sycl.ComputeCpp(
+                computepp,
+                oclcpu,
+                tbb,
+                s"computecpp-$ver-oclcpu-$oclcpuyyyymm",
+                s"c${ver}o$oclcpuyyyymm"
+              )
             }
           case _ => Vector()
         }
