@@ -11,29 +11,11 @@ object CloverLeaf {
       cmakeOpts: Vector[(String, String)],
       runlineEnv: String
   ) = {
-    val prelude =
-      Vector(s"cd ${repo.^?} ", s"export $runlineEnv") ++
-        (platform match {
-          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
-          case _                                  => Vector()
-        })
 
     val mpiPath = platform match {
       case RomeIsambardMACS | CxlIsambardMACS => Platform.IsambardMACS.oneapiMPIPath
       case l: Local                           => l.oneapiMPIPath
     }
-
-    val build = cmake(
-      target = "cloverleaf",
-      build = repo / "build",
-      cmakeOpts ++ Vector(
-        "MPI_AS_LIBRARY"    -> "ON",
-        "MPI_C_LIB_DIR"     -> s"$mpiPath/lib",
-        "MPI_C_INCLUDE_DIR" -> s"$mpiPath/include",
-        "MPI_C_LIB"         -> s"$mpiPath/lib/release/libmpi.so"
-      ): _*
-    )
-    val conclude = Vector(s"cp ${(repo / "build" / "cloverleaf").^?} ${repo.^?}")
 
     val deviceName = platform match {
       case RomeIsambardMACS => "AMD"
@@ -41,13 +23,26 @@ object CloverLeaf {
       case l: Local         => l.deviceSubstring
     }
 
-    (
-      prelude ++ build ++ conclude,
-      repo,
+    RunSpec(
+      s"export $runlineEnv" +: (platform match {
+        case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
+        case _                                  => Vector()
+      }),
+      s"cd ${repo.^?}" +: cmake(
+        target = "cloverleaf",
+        build = repo / "build",
+        cmakeOpts ++ Vector(
+          "MPI_AS_LIBRARY"    -> "ON",
+          "MPI_C_LIB_DIR"     -> s"$mpiPath/lib",
+          "MPI_C_INCLUDE_DIR" -> s"$mpiPath/include",
+          "MPI_C_LIB"         -> s"$mpiPath/lib/release/libmpi.so"
+        ): _*
+      ) :+ s"cp ${(repo / "build" / "cloverleaf").^?} ${repo.^?}",
       Vector(
         s"$runlineEnv ${(repo / "cloverleaf").^?} --file ${(repo / "InputDecks" / "clover_bm16_short.in").^?} --device $deviceName"
       )
     )
+
   }
 
   val Def = Project(
@@ -69,6 +64,11 @@ object CloverLeaf {
         )
 
       case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
+        val toolchainFlag = platform match {
+          case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+            s"--gcc-toolchain=$EvalGCCPathExpr"
+          case _ => ""
+        }
         setup(
           repo,
           platform,
@@ -76,7 +76,7 @@ object CloverLeaf {
             "SYCL_RUNTIME"    -> "DPCPP",
             "DPCPP_BIN"       -> (dpcpp / "bin" / "clang++").!!,
             "DPCPP_INCLUDE"   -> (dpcpp / "include" / "sycl").!!,
-            "CXX_EXTRA_FLAGS" -> s"-fsycl  --gcc-toolchain=$EvalGCCPathExpr"
+            "CXX_EXTRA_FLAGS" -> s"-fsycl $toolchainFlag"
           ),
           LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
         )

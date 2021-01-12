@@ -30,14 +30,13 @@ object Main {
       s"""cd "$repoRoot" """
     )
 
-    val (compileAndPrepare, runDir, exec) = project.run(repoRoot, platform, sycl)
+    val RunSpec(prelude, build, run) = project.run(repoRoot, platform, sycl)
 
     val submitJob = platform.submit(
       Platform.JobSpec(
         jobFile = buildsDir / s"run-$id.job",
         name = s"${project.abbr}-${platform.abbr}-${sycl.abbr}",
-        runDir = runDir,
-        commands = exec,
+        commands = run,
         outPrefix = resultsDir / id
       )
     )
@@ -46,9 +45,11 @@ object Main {
       s"""|#!/bin/bash
           |set -eu
           |
+		  |${prelude.mkString("\n")}
+		  |
           |prepare() {
           |echo "[STAGING]$id: preparing..."
-          |${(cloneAndCd ++ compileAndPrepare).mkString("\n")}
+          |${(cloneAndCd ++ build).mkString("\n")}
           |echo "[STAGING]$id: preparation complete"
           |}
           |
@@ -81,11 +82,13 @@ object Main {
 
   }
 
+  case class RunSpec(prelude: Vector[String], build: Vector[String], run: Vector[String])
+
   case class Project(
       name: String,
       abbr: String,
       gitRepo: (String, String),
-      run: PartialFunction[(File, Platform, Sycl), (Vector[String], File, Vector[String])]
+      run: PartialFunction[(File, Platform, Sycl), RunSpec]
   )
 
   val Projects  = Vector(Bude.Def, CloverLeaf.Def, BabelStream.Def)
@@ -192,7 +195,7 @@ object Main {
   def main(args: Array[String]): Unit =
     run(args.toList)
   //    run("list" :: Nil)
-  //    run("bench" :: "bude" :: "dpcpp-*-oclcpu-202006"  :: "local-amd":: "./test" :: "true" :: Nil)
+  //    run("bench" :: "bude" :: "dpcpp-2021*-oclcpu-202006"  :: "local-amd":: "./test" :: "true" :: Nil)
   //    run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
   //    run("bench" :: "all" :: "dpcpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
   //    run("bench" :: "all" :: "computecpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)

@@ -8,35 +8,30 @@ object Bude {
   def setup(wd: File, p: Platform, cmakeOpts: Vector[(String, String)], runlineEnv: String) = {
     val repo = wd / "sycl"
 
-    val prelude =
-      Vector(s"cd ${repo.^?} ", s"export $runlineEnv") ++
-        (p match {
-          case Platform.CxlIsambardMACS | Platform.RomeIsambardMACS =>
-            Platform.IsambardMACS.setupModules
-          case _ => Vector()
-        })
-
-    val build = cmake(
-      target = "bude",
-      build = repo / "build",
-      cmakeOpts ++ Vector("CMAKE_C_COMPILER" -> "gcc", "CMAKE_CXX_COMPILER" -> "g++"): _*
-    )
-
-    val conclude = Vector(s"cp ${(repo / "build" / "bude").^?} ${repo.^?}")
-
     val deviceName = p match {
       case Platform.RomeIsambardMACS => "AMD"
       case Platform.CxlIsambardMACS  => "Xeon"
       case l: Local                  => l.deviceSubstring
     }
 
-    (
-      prelude ++ build ++ conclude,
-      repo,
-      Vector(
+    RunSpec(
+      prelude = s"export $runlineEnv" +: (p match {
+        case Platform.CxlIsambardMACS | Platform.RomeIsambardMACS =>
+          Platform.IsambardMACS.setupModules
+        case _ => Vector()
+      }),
+      build = s"cd ${repo.^?} " +:
+        cmake(
+          target = "bude",
+          build = repo / "build",
+          cmakeOpts ++ Vector("CMAKE_C_COMPILER" -> "gcc", "CMAKE_CXX_COMPILER" -> "g++"): _*
+        ) :+
+        s"cp ${(repo / "build" / "bude").^?} ${repo.^?}",
+      run = Vector(
         s"$runlineEnv ${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device $deviceName"
       )
     )
+
   }
 
   val Def = Project(
@@ -61,6 +56,12 @@ object Bude {
         )
 
       case (wd, p, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
+        val toolchainFlag = p match {
+          case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+            s"--gcc-toolchain=$EvalGCCPathExpr"
+          case _ => ""
+        }
+
         setup(
           wd,
           p,
@@ -68,7 +69,7 @@ object Bude {
             "SYCL_RUNTIME"      -> "DPCPP",
             "DPCPP_BIN"         -> (dpcpp / "bin" / "clang++").!!,
             "DPCPP_INCLUDE"     -> (dpcpp / "include" / "sycl").!!,
-            "CXX_EXTRA_FLAGS"   -> s"-fsycl --gcc-toolchain=$EvalGCCPathExpr",
+            "CXX_EXTRA_FLAGS"   -> s"-fsycl $toolchainFlag",
             "NUM_TD_PER_THREAD" -> "2"
           ),
           LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")

@@ -12,18 +12,6 @@ object BabelStream {
       runlineEnv: String
   ) = {
 
-    val prelude =
-      Vector(s"cd ${repo.^?} ", s"export $runlineEnv") ++
-        (platform match {
-          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
-          case _                                  => Vector()
-        })
-
-    val build = make(
-      makefile = repo / "SYCL.make",
-      makeOpts: _*
-    )
-
     val deviceName = platform match {
       case RomeIsambardMACS => "AMD"
       case CxlIsambardMACS  => "Xeon"
@@ -31,16 +19,25 @@ object BabelStream {
     }
 
     val exe = (repo / "sycl-stream").^?
-    (
-      prelude ++ build,
-      repo,
-      Vector(
-        s"export $runlineEnv",
+
+    RunSpec(
+      prelude = s"export $runlineEnv" +:
+        (platform match {
+          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
+          case _                                  => Vector()
+        }),
+      build = s"cd ${repo.^?} " +:
+        make(
+          makefile = repo / "SYCL.make",
+          makeOpts: _*
+        ),
+      run = Vector(
         s"""export DEVICE=$$($exe --list | grep "$deviceName" | cut -d ':' -f1)""",
         s"""echo "Using device $$DEVICE which matches substring $deviceName" """,
         s"$exe --device $$DEVICE"
       )
     )
+
   }
 
   val Def = Project(
@@ -62,6 +59,12 @@ object BabelStream {
         )
 
       case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
+
+        val toolchainFlag = platform match {
+          case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+            s"--gcc-toolchain=$EvalGCCPathExpr"
+          case _ => ""
+        }
         setup(
           repo,
           platform,
@@ -70,7 +73,7 @@ object BabelStream {
             "TARGET"             -> "CPU",
             "SYCL_DPCPP_CXX"     -> (dpcpp / "bin" / "clang++").!!,
             "SYCL_DPCPP_INCLUDE" -> s"-I${(dpcpp / "include" / "sycl").!!}",
-            "EXTRA_FLAGS"        -> s"-DCL_TARGET_OPENCL_VERSION=220 -fsycl  --gcc-toolchain=$EvalGCCPathExpr"
+            "EXTRA_FLAGS"        -> s"-DCL_TARGET_OPENCL_VERSION=220 -fsycl $toolchainFlag"
           ),
           LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
         )

@@ -13,7 +13,6 @@ object Platform {
   case class JobSpec(
       jobFile: File,
       name: String,
-      runDir: File,
       commands: Vector[String],
       outPrefix: File
   )
@@ -28,7 +27,6 @@ object Platform {
                       |#PBS -l walltime=00:10:00
                       |#PBS -joe
                       |set -eu
-                      |cd "${spec.runDir}" || exit 2
                       |date
                       |${spec.commands.mkString("\n")}
                       |""".stripMargin)
@@ -72,10 +70,9 @@ object Platform {
         spec => {
           val job = spec.jobFile.createFileIfNotExists()
           job.overwrite(s"""|#!/bin/bash
-                      |cd "${spec.runDir}" || exit 2
-                      |date
-                      |${spec.commands.mkString("\n")}
-                      |""".stripMargin)
+                            |date
+                            |${spec.commands.mkString("\n")}
+                            |""".stripMargin)
           Vector(s"chmod +x $job", s"""timeout 20 bash $job &> "${spec.outPrefix}.out" """)
         }
       ) {
