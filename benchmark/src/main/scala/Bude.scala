@@ -5,7 +5,7 @@ import better.files.File
 
 object Bude {
 
-  def setup(wd: File, p: Platform, cmakeOpts: Vector[(String, String)], runlineEnv: String) = {
+  def setup(wd: File, p: Platform, cmakeOpts: Vector[(String, String)], exports: String*) = {
     val repo = wd / "sycl"
 
     val deviceName = p match {
@@ -15,11 +15,11 @@ object Bude {
     }
 
     RunSpec(
-      prelude = s"export $runlineEnv" +: (p match {
+      prelude = (p match {
         case Platform.CxlIsambardMACS | Platform.RomeIsambardMACS =>
           Platform.IsambardMACS.setupModules
         case _ => Vector()
-      }),
+      }) ++ exports.map(e => s"export $e"),
       build = s"cd ${repo.^?} " +:
         cmake(
           target = "bude",
@@ -28,7 +28,7 @@ object Bude {
         ) :+
         s"cp ${(repo / "build" / "bude").^?} ${repo.^?}",
       run = Vector(
-        s"$runlineEnv ${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device $deviceName"
+        s"${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device $deviceName"
       )
     )
 
@@ -72,7 +72,13 @@ object Bude {
             "CXX_EXTRA_FLAGS"   -> s"-fsycl $toolchainFlag",
             "NUM_TD_PER_THREAD" -> "2"
           ),
-          LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
+          prependFileEnvs(
+            "LD_LIBRARY_PATH",
+            dpcpp / "lib",
+            tbb / "lib/intel64/gcc4.8",
+            oclcpu / "x64"
+          ),
+          fileEnvs("OCL_ICD_FILENAMES", oclcpu / "x64" / "libintelocl.so")
         )
 
       case (wd, p, Sycl.hipSYCL(path, _, _)) => ???

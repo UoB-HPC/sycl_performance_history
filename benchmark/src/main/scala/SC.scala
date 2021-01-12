@@ -8,11 +8,23 @@ object SC {
     def ^? : String = s""""${f.pathAsString}""""
   }
 
-  def LD_LIBRARY_PATH_=(xs: File*) =
-    s"""LD_LIBRARY_PATH=${xs
-      .tapEach(_.ensuring(_.exists))
-      .map(_.pathAsString)
-      .mkString("\"", ":", "\"")} """
+
+
+  def prependFileEnvs(name : String,  xs: File*) = fileEnvs_(name, appendExisting = true, xs:_ *)
+  def fileEnvs(name : String,  xs: File*) = fileEnvs_(name, appendExisting = false, xs:_ *)
+
+
+  private def fileEnvs_(name : String, appendExisting: Boolean,  xs: File*) = {
+    val existing = if (appendExisting) s":$${$name:-}" else ""
+    val kvs = xs
+        .tapEach(_.ensuring(_.exists))
+        .map(_.pathAsString)
+        .mkString("\"", ":", s"""$existing"""")
+    s"$name=$kvs"
+  }
+
+  def LD_LIBRARY_PATH_=(xs: File*): String = fileEnvs_("LD_LIBRARY_PATH",false, xs :_ *)
+
 
   def cmake(target: String, build: File, cmakeOpts: (String, String)*) = Vector(
     s"""cmake -B${build.^?} -H. -DCMAKE_BUILD_TYPE=Release ${cmakeOpts

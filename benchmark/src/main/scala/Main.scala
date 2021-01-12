@@ -193,10 +193,10 @@ object Main {
   }
 
   def main(args: Array[String]): Unit =
-    run(args.toList)
+//    run(args.toList)
   //    run("list" :: Nil)
-  //    run("bench" :: "bude" :: "dpcpp-2021*-oclcpu-202006"  :: "local-amd":: "./test" :: "true" :: Nil)
-  //    run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
+      run("bench" :: "bude" :: "dpcpp-2021*-oclcpu-202006"  :: "local-amd":: "./test" :: "true" :: Nil)
+//      run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
   //    run("bench" :: "all" :: "dpcpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
   //    run("bench" :: "all" :: "computecpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
 
