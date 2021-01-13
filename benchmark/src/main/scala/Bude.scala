@@ -3,7 +3,7 @@ import SC._
 import better.files.File
 
 import scala.concurrent.duration.DurationInt
-import scala.languageFeature.postfixOps
+import scala.language.postfixOps
 
 object Bude {
 

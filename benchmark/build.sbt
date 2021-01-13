@@ -20,6 +20,7 @@ lazy val benchmark = project
     name := "benchmark",
     mainClass in (Compile, run) := Some("Main"),
     mainClass in assembly := Some("Main"),
+    assemblyOutputPath in assembly := baseDirectory.value/ "benchmark.jar",
     libraryDependencies ++= Seq(
       "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.0",
       "com.github.pathikrit"   %% "better-files"               % "3.9.1",
