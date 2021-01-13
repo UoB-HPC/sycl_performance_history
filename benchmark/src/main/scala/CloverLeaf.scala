@@ -18,7 +18,7 @@ object CloverLeaf {
       case RomeIsambardMACS | CxlIsambardMACS =>
         Vector(
           prependFileEnvs("LD_LIBRARY_PATH", IsambardMACS.oneapiLibFabricPath / "lib"),
-          prependFileEnvs("FI_PROVIDER_PATH", IsambardMACS.oneapiLibFabricPath / " lib" / "prov")
+          prependFileEnvs("FI_PROVIDER_PATH", IsambardMACS.oneapiLibFabricPath / "lib" / "prov")
         ) -> IsambardMACS.oneapiMPIPath
       case l: Local => Vector() -> l.oneapiMPIPath
     }
