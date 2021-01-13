@@ -114,8 +114,15 @@ object Main {
       run: PartialFunction[(File, Platform, Sycl), RunSpec]
   )
 
-  val Projects  = Vector(Bude.Def, CloverLeaf.Def, BabelStream.Def)
-  val Platforms = Vector(Platform.RomeIsambardMACS, Platform.CxlIsambardMACS, Platform.LocalAMDCPU)
+  val Projects = Vector(Bude.Def, CloverLeaf.Def, BabelStream.Def)
+  val Platforms = Vector(
+    Platform.RomeIsambardMACS,
+    Platform.CxlIsambardMACS,
+    Platform.IrisPro580UoBZoo,
+    Platform.LocalAMDCPU,
+    Platform.LocalIntelCPU,
+    Platform.LocalIntelGPU
+  )
 
   def globToRegexLite(glob: String): Regex =
     ("^" + glob.flatMap {
