@@ -14,29 +14,35 @@ object CloverLeaf {
       exports: String*
   ) = {
 
-    val mpiPath = platform match {
-      case RomeIsambardMACS | CxlIsambardMACS => Platform.IsambardMACS.oneapiMPIPath
-      case l: Local                           => l.oneapiMPIPath
+    val (mpiEnvs, mpiPath) = platform match {
+      case RomeIsambardMACS | CxlIsambardMACS =>
+        Vector(
+          prependFileEnvs("LD_LIBRARY_PATH", IsambardMACS.oneapiLibFabricPath / "lib"),
+          prependFileEnvs("FI_PROVIDER_PATH", IsambardMACS.oneapiLibFabricPath / " lib" / "prov")
+        ) -> IsambardMACS.oneapiMPIPath
+      case l: Local => Vector() -> l.oneapiMPIPath
     }
 
     RunSpec(
       (platform match {
         case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
         case _                                  => Vector()
-      }) ++ exports.map(e => s"export $e"),
+      }) ++ (exports ++ mpiEnvs).map(e => s"export $e"),
       s"cd ${repo.^?}" +: cmake(
         target = "cloverleaf",
         build = repo / "build",
         cmakeOpts ++ Vector(
           "MPI_AS_LIBRARY"    -> "ON",
-          "MPI_C_LIB_DIR"     -> s"$mpiPath/lib",
-          "MPI_C_INCLUDE_DIR" -> s"$mpiPath/include",
-          "MPI_C_LIB"         -> s"$mpiPath/lib/release/libmpi.so"
+          "MPI_C_LIB_DIR"     -> (mpiPath / "lib").!!,
+          "MPI_C_INCLUDE_DIR" -> (mpiPath / "include").!!,
+          "MPI_C_LIB"         -> (mpiPath / "lib" / " release" / "libmpi.so").!!
         ): _*
       ) :+ s"cp ${(repo / "build" / "cloverleaf").^?} ${repo.^?}",
       Vector(
         s"cd ${repo.^?}",
-        s"${(repo / "cloverleaf").^?} --file ${(repo / "InputDecks" / "clover_bm16_short.in").^?} --device ${platform.deviceSubstring}"
+        s"${(repo / "cloverleaf").^?} " +
+          s"--file ${(repo / "InputDecks" / "clover_bm16_short.in").^?} " +
+          s"--device ${platform.deviceSubstring}"
       )
     )
 

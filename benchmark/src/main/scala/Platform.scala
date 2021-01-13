@@ -39,7 +39,7 @@ object Platform {
     s"""|#!/bin/bash
         |#PBS -q $queue
         |#PBS -l select=1:ncpus=$cpus
-		|#PBS -l place=excl
+        |#PBS -l place=excl
         |#PBS -l walltime=${d.toHoursPart}:${d.toMinutesPart}:${d.toSecondsPart}
         |#PBS -joe
         |set -eu
@@ -55,7 +55,9 @@ object Platform {
   }
 
   object IsambardMACS {
-    val oneapiMPIPath = "/lustre/projects/bristol/modules/intel/oneapi/2021.1/mpi/2021.1.1"
+    val oneapiMPIPath: File =
+      File("/lustre/projects/bristol/modules/intel/oneapi/2021.1/mpi/2021.1.1")
+    val oneapiLibFabricPath: File = oneapiMPIPath / "libfabric"
     val setupModules = Vector(
       "module purge",
       "module use /lustre/projects/bristol/modules/modulefiles",
@@ -97,7 +99,7 @@ object Platform {
           }
         }
       ) {
-    val oneapiMPIPath = "/opt/intel/oneapi/mpi/2021.1.1"
+    val oneapiMPIPath: File = File("/opt/intel/oneapi/mpi/2021.1.1")
   }
 
   case object LocalAMDCPU   extends Local("amd", "native", "AMD")
