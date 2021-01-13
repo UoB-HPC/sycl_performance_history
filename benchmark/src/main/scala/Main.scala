@@ -86,12 +86,21 @@ object Main {
     script.overwrite(scriptContent)
     script.addPermission(PosixFilePermission.OWNER_EXECUTE)
 
-    import scala.sys.process._
+    def spawn(xs: String*) = {
+      import scala.sys.process._
+      val code = xs.!
+      println(s"Process exited with $code for `${xs.mkString(" ")}`")
+      code
+    }
 
-    (
-      () => Seq("/bin/bash", s"$script", "prepare").!,
-      () => Seq("/bin/bash", s"$script", "run").!
-    )
+    def prepareProc = spawn("/bin/bash", s"$script", "prepare")
+    def runProc     = spawn("/bin/bash", s"$script", "run")
+
+    if (platform.hasQueue) {
+      (() => { prepareProc; runProc }) -> (() => 0)
+    } else {
+      (() => prepareProc) -> (() => runProc)
+    }
 
   }
 

@@ -52,7 +52,7 @@ object CloverLeaf {
     name = "cloverleaf",
     abbr = "c",
     gitRepo = "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
-    timeout = 2 minutes,
+    timeout = 10 minutes,
     run = {
       case (repo, platform, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
         setup(

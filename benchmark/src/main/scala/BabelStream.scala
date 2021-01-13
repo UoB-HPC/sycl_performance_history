@@ -47,7 +47,7 @@ object BabelStream {
     name = "babelstream",
     abbr = "s",
     gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
-    timeout = 1 minute,
+    timeout = 5 minute,
     {
       case (repo, platform, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
         setup(

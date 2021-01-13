@@ -10,6 +10,7 @@ sealed abstract class Platform(
     val abbr: String,
     val march: String,
     val deviceSubstring: String,
+    val hasQueue: Boolean,
     val submit: JobSpec => (String, File => Vector[String])
 )
 object Platform {
@@ -73,6 +74,7 @@ object Platform {
         abbr = "r",
         march = "znver2",
         deviceSubstring = "AMD",
+        hasQueue = true,
         submit = pbsCpu("romeq", 128)
       )
   case object CxlIsambardMACS
@@ -81,6 +83,7 @@ object Platform {
         abbr = "c",
         march = "skylake-avx512",
         deviceSubstring = "Xeon",
+        hasQueue = true,
         submit = pbsCpu("clxq", 40)
       )
 
@@ -90,6 +93,7 @@ object Platform {
         abbr = s"l-$name",
         march = march,
         deviceSubstring = deviceSubstring,
+        hasQueue = false,
         submit = spec => {
           s"""|#!/bin/bash
               |date

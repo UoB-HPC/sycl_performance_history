@@ -15,7 +15,7 @@ object SC {
   private def fileEnvs_(name: String, appendExisting: Boolean, xs: File*) = {
     val existing = if (appendExisting) s":$${$name:-}" else ""
     val kvs = xs
-      .tapEach(p =>p.ensuring(_.exists,s"path $p does not exist"))
+      .tapEach(p => p.ensuring(_.exists, s"path $p does not exist"))
       .map(_.pathAsString)
       .mkString("\"", ":", s"""$existing"""")
     s"$name=$kvs"

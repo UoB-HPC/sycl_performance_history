@@ -35,7 +35,7 @@ object Bude {
     name = "bude",
     abbr = "b",
     gitRepo = "https://github.com/UoB-HPC/bude-portability-benchmark.git" -> "master",
-    timeout = 30 seconds,
+    timeout = 1 minute,
     run = {
       case (wd, p, computecpp @ Sycl.ComputeCpp(_, oclcpu, _, _, _)) =>
         setup(
