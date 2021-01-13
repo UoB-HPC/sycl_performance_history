@@ -1,36 +1,30 @@
 import Platform.JobSpec
+import SC.RichFile
 import better.files.File
 
 import java.nio.file.Paths
+import scala.concurrent.duration.Duration
 
 sealed abstract class Platform(
     val name: String,
     val abbr: String,
-    val submit: JobSpec => Vector[String]
+    val march: String,
+    val deviceSubstring: String,
+    val submit: JobSpec => (String, File => Vector[String])
 )
 object Platform {
 
   case class JobSpec(
-      jobFile: File,
       name: String,
+      timeout: Duration,
       commands: Vector[String],
       outPrefix: File
   )
 
   val PbsProNameLengthLimit = 15
 
-  def pbsCpu(queue: String, cpus: Int): JobSpec => Vector[String] = { spec =>
-    val job = spec.jobFile.createFileIfNotExists()
-    job.overwrite(s"""|#!/bin/bash
-                      |#PBS -q $queue
-                      |#PBS -l select=1:ncpus=$cpus
-                      |#PBS -l walltime=00:10:00
-                      |#PBS -joe
-                      |set -eu
-                      |date
-                      |${spec.commands.mkString("\n")}
-                      |""".stripMargin)
-
+  def pbsCpu(queue: String, cpus: Int): JobSpec => (String, File => Vector[String]) = { spec =>
+    val d = java.time.Duration.ofNanos(spec.timeout.toNanos)
     // PBS can't handle path with lustre included for some reason
     def normalisePbsPath(f: File) = {
       val absoluteHome  = Paths.get("/lustre/home")
@@ -42,11 +36,21 @@ object Platform {
       } else f
     }
     val prefix = normalisePbsPath(spec.outPrefix)
-    Vector(
-      s"""qsub -o "$prefix.out" -e "$prefix.err" -N "${spec.name.take(
-        PbsProNameLengthLimit
-      )}" -V "${normalisePbsPath(job)}" """
-    )
+    s"""|#!/bin/bash
+        |#PBS -q $queue
+        |#PBS -l select=1:ncpus=$cpus
+        |#PBS -l walltime=${d.toHoursPart}:${d.toMinutesPart}:${d.toSecondsPart}
+        |#PBS -joe
+        |set -eu
+        |date
+        |${spec.commands.mkString("\n")}
+        |""".stripMargin -> { f =>
+      Vector(
+        s"""qsub -o "$prefix.out" -e "$prefix.err" -N "${spec.name.take(
+          PbsProNameLengthLimit
+        )}" -V ${normalisePbsPath(f).^?} """
+      )
+    }
   }
 
   object IsambardMACS {
@@ -60,27 +64,43 @@ object Platform {
     )
   }
 
-  case object RomeIsambardMACS extends Platform("rome-isambard", "r", pbsCpu("romeq", 128))
-  case object CxlIsambardMACS  extends Platform("cxl-isambard", "c", pbsCpu("clxq", 40))
-
-  sealed abstract class Local(name: String, val deviceSubstring: String)
+  case object RomeIsambardMACS
       extends Platform(
-        s"local-$name",
-        s"l-$name",
-        spec => {
-          val job = spec.jobFile.createFileIfNotExists()
-          job.overwrite(s"""|#!/bin/bash
-                            |date
-                            |${spec.commands.mkString("\n")}
-                            |""".stripMargin)
-          Vector(s"chmod +x $job", s"""timeout 20 bash $job &> "${spec.outPrefix}.out" """)
+        name = "rome-isambard",
+        abbr = "r",
+        march = "znver2",
+        deviceSubstring = "AMD",
+        submit = pbsCpu("romeq", 128)
+      )
+  case object CxlIsambardMACS
+      extends Platform(
+        name = "cxl-isambard",
+        abbr = "c",
+        march = "skylake-avx512",
+        deviceSubstring = "Xeon",
+        submit = pbsCpu("clxq", 40)
+      )
+
+  sealed abstract class Local(name: String, march: String, deviceSubstring: String)
+      extends Platform(
+        name = s"local-$name",
+        abbr = s"l-$name",
+        march = march,
+        deviceSubstring = deviceSubstring,
+        submit = spec => {
+          s"""|#!/bin/bash
+              |date
+              |${spec.commands.mkString("\n")}
+              |""".stripMargin -> { f =>
+            Vector(s"""timeout ${spec.timeout.toSeconds} bash ${f.^?} &> "${spec.outPrefix}.out"""")
+          }
         }
       ) {
     val oneapiMPIPath = "/opt/intel/oneapi/mpi/2021.1.1"
   }
 
-  case object LocalAMDCPU   extends Local("amd", "AMD")
-  case object LocalIntelGPU extends Local("intel", "Intel")
-  case object LocalIntelCPU extends Local("intel", "Intel")
+  case object LocalAMDCPU   extends Local("amd", "native", "AMD")
+  case object LocalIntelGPU extends Local("intel", "native", "Intel")
+  case object LocalIntelCPU extends Local("intel", "native", "Intel")
 
 }

@@ -1,18 +1,14 @@
 import Main._
-import Platform.Local
 import SC._
 import better.files.File
+
+import scala.concurrent.duration.DurationInt
+import scala.languageFeature.postfixOps
 
 object Bude {
 
   def setup(wd: File, p: Platform, cmakeOpts: Vector[(String, String)], exports: String*) = {
     val repo = wd / "sycl"
-
-    val deviceName = p match {
-      case Platform.RomeIsambardMACS => "AMD"
-      case Platform.CxlIsambardMACS  => "Xeon"
-      case l: Local                  => l.deviceSubstring
-    }
 
     RunSpec(
       prelude = (p match {
@@ -28,57 +24,51 @@ object Bude {
         ) :+
         s"cp ${(repo / "build" / "bude").^?} ${repo.^?}",
       run = Vector(
-        s"${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device $deviceName"
+        s"cd ${wd.^?}",
+        s"${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device ${p.deviceSubstring}"
       )
     )
 
   }
 
   val Def = Project(
-    "bude",
-    "b",
-    "https://github.com/UoB-HPC/bude-portability-benchmark.git" -> "master",
-    {
-      case (wd, p, Sycl.ComputeCpp(computepp, oclcpu, tbb, _, _)) =>
+    name = "bude",
+    abbr = "b",
+    gitRepo = "https://github.com/UoB-HPC/bude-portability-benchmark.git" -> "master",
+    timeout = 30 seconds,
+    run = {
+      case (wd, p, computecpp @ Sycl.ComputeCpp(_, oclcpu, _, _, _)) =>
         setup(
           wd,
           p,
           Vector(
             "SYCL_RUNTIME"      -> "COMPUTECPP",
-            "ComputeCpp_DIR"    -> computepp.^,
+            "ComputeCpp_DIR"    -> computecpp.sdk,
             "NUM_TD_PER_THREAD" -> "2"
           ) ++ (p match {
             case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
               Vector("OpenCL_LIBRARY" -> (oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
-          LD_LIBRARY_PATH_=(tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
+          computecpp.envs: _*
         )
 
-      case (wd, p, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
-        val toolchainFlag = p match {
-          case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
-            s"--gcc-toolchain=$EvalGCCPathExpr"
-          case _ => ""
-        }
-
+      case (wd, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
         setup(
           wd,
           p,
           Vector(
-            "SYCL_RUNTIME"      -> "DPCPP",
-            "DPCPP_BIN"         -> (dpcpp / "bin" / "clang++").!!,
-            "DPCPP_INCLUDE"     -> (dpcpp / "include" / "sycl").!!,
-            "CXX_EXTRA_FLAGS"   -> s"-fsycl $toolchainFlag",
+            "SYCL_RUNTIME"  -> "DPCPP",
+            "DPCPP_BIN"     -> dpcpp.`clang++`,
+            "DPCPP_INCLUDE" -> dpcpp.include,
+            "CXX_EXTRA_FLAGS" -> s"-fsycl -march=${p.march} ${p match {
+              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+                s"--gcc-toolchain=$EvalGCCPathExpr"
+              case _ => ""
+            }}",
             "NUM_TD_PER_THREAD" -> "2"
           ),
-          prependFileEnvs(
-            "LD_LIBRARY_PATH",
-            dpcpp / "lib",
-            tbb / "lib/intel64/gcc4.8",
-            oclcpu / "x64"
-          ),
-          fileEnvs("OCL_ICD_FILENAMES", oclcpu / "x64" / "libintelocl.so")
+          dpcpp.envs: _*
         )
 
       case (wd, p, Sycl.hipSYCL(path, _, _)) => ???

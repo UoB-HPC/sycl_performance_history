@@ -1,7 +1,11 @@
+import SC.RichFile
 import better.files.File
 
 import java.nio.file.attribute.PosixFilePermission
+import java.util.concurrent.ForkJoinPool
 import scala.collection.parallel.CollectionConverters._
+import scala.collection.parallel.ForkJoinTaskSupport
+import scala.concurrent.duration.Duration
 import scala.util.matching.Regex
 
 //noinspection TypeAnnotation
@@ -22,20 +26,26 @@ object Main {
     val resultsDir = (workingDir / "results").createDirectoryIfNotExists()
     resultsDir.list.filter(_.name.startsWith(id)).foreach(_.delete())
 
-    val repoRoot = (buildsDir / id).createDirectoryIfNotExists().clear()
+    val repoRoot = buildsDir / id
 
     val cloneAndCd = Vector(
-      s"""cd "$workingDir" """,
-      s"""git clone -b ${project.gitRepo._2} "${project.gitRepo._1}" "$repoRoot" """,
-      s"""cd "$repoRoot" """
+      s"cd ${workingDir.^?}",
+      s"if [[ -d ${repoRoot.^?} ]];then",
+      s"cd ${repoRoot.^?}",
+      "git fetch",
+      "else",
+      s"""git clone -b "${project.gitRepo._2}" "${project.gitRepo._1}" ${repoRoot.^?} """,
+      s"cd ${repoRoot.^?}",
+      "fi"
     )
 
     val RunSpec(prelude, build, run) = project.run(repoRoot, platform, sycl)
 
-    val submitJob = platform.submit(
+    val jobFile = repoRoot / s"run.job"
+    val (jobScript, submit) = platform.submit(
       Platform.JobSpec(
-        jobFile = buildsDir / s"run-$id.job",
         name = s"${project.abbr}-${platform.abbr}-${sycl.abbr}",
+        timeout = project.timeout,
         commands = run,
         outPrefix = resultsDir / id
       )
@@ -55,22 +65,25 @@ object Main {
           |
           |run() {
           |echo "[STAGING]$id: submitting..."
-          |${submitJob.mkString("\n")}
+		  |
+		  |cat > $$${jobFile.^?} <<- "EOM"
+          |$jobScript
+          |EOM
+		  |chmod +x ${jobFile.^?}
+          |${submit(jobFile).mkString("\n")}
           |echo "[STAGING]$id: submitted"
           |}
           |
-          |case $$1 in
+          |case $${1:-} in
           | prepare) "$$@"; exit;;
           | run)     "$$@"; exit;;
+		  | *)       prepare;run;;
           |esac
-          |
-          |prepare
-          |run
           |
           |""".stripMargin
 
-    val script = buildsDir / s"benchmark-$id.sh"
-    script.createFileIfNotExists().overwrite(scriptContent)
+    val script = workingDir / s"benchmark-$id.sh"
+    script.overwrite(scriptContent)
     script.addPermission(PosixFilePermission.OWNER_EXECUTE)
 
     import scala.sys.process._
@@ -88,6 +101,7 @@ object Main {
       name: String,
       abbr: String,
       gitRepo: (String, String),
+      timeout: Duration,
       run: PartialFunction[(File, Platform, Sycl), RunSpec]
   )
 
@@ -124,7 +138,7 @@ object Main {
                  |  <sycl:glob>              - blob pattern of the sycl config tuple to use, see `list`
                  |  <platform:glob>          - the platforms to run on, see `list` 
                  |  <out:dir>                - output directory for results and intermediate build files
-                 |  <par:bool>               - compile projects in parallel
+                 |  <par:int>                - compile projects with the specified parallelism
                  |""".stripMargin)
 
     def resolve(path: String, name: String) = {
@@ -157,7 +171,7 @@ object Main {
         Sycl.primeOclCpu(oclcpu)
         Sycl.primeComputeCpp(Some(pool), computecpp)
         Sycl.primeDPCPP(dpcpp)
-      case "bench" :: project :: syclGlob :: platformGlob :: outDir :: par :: Nil =>
+      case "bench" :: project :: syclGlob :: platformGlob :: outDir :: parN :: Nil =>
         val out           = File(outDir).createDirectoryIfNotExists()
         val syclRegex     = globToRegexLite(syclGlob)
         val platformRegex = globToRegexLite(platformGlob)
@@ -174,14 +188,20 @@ object Main {
 
           } yield runProject(proj, platform, sycl, out)).unzip
 
-        val parallel = par.toLowerCase match {
-          case "true" | "ON" | "1"   => true
-          case "false" | "OFF" | "0" => false
-          case bad                   => throw new Exception(s"can't parse $bad for boolean")
+        val parallel = parN.toLowerCase match {
+          case "false" | "OFF" | "0" => 1
+          case n =>
+            n.toIntOption match {
+              case Some(x) => x
+              case None    => throw new Exception(s"can't parse $n for parN")
+            }
         }
 
-        if (parallel) preps.par.foreach(_())
-        else preps.foreach(_())
+        if (parallel > 1) {
+          val parxs = preps.par
+          parxs.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(parallel))
+          parxs.foreach(_())
+        } else preps.foreach(_())
 
         println("Starting benchmarks:")
         runs.foreach(_())
@@ -195,7 +215,11 @@ object Main {
   def main(args: Array[String]): Unit =
     run(args.toList)
   //    run("list" :: Nil)
-//      run("bench" :: "bude" :: "dpcpp-2021*-oclcpu-202006"  :: "local-amd":: "./test" :: "true" :: Nil)
+//    run(
+//      "bench" :: "all" :: "dpcpp-2021*-oclcpu-202012" :: "local-amd" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil
+//      "bench" :: "bude" :: "dpcpp-2021*-oclcpu-*" :: "local-amd" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil
+//    )
+//    run("bench" :: "cloverleaf" :: "computecpp*-oclcpu-*" :: "local-amd" :: "./test" :: "4" :: Nil)
 //      run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
   //    run("bench" :: "all" :: "dpcpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)
   //    run("bench" :: "all" :: "computecpp-*-oclcpu-202006" :: "./test" :: "true" :: Nil)

@@ -1,4 +1,5 @@
 import EvenBetterFiles._
+import SC._
 import better.files.File
 
 import scala.collection.parallel.CollectionConverters._
@@ -12,9 +13,34 @@ object Sycl {
   case class ComputeCpp(computepp: File, oclcpu: File, tbb: File, key: String, abbr: String)
       extends Sycl {
     def paths = Vector("compute++" -> computepp)
+
+    def envs: Vector[String] = Vector(
+      prependFileEnvs(
+        "LD_LIBRARY_PATH",
+        tbb / "lib/intel64/gcc4.8",
+        oclcpu / "x64"
+      ),
+      fileEnvs("OCL_ICD_FILENAMES", oclcpu / "x64" / "libintelocl.so")
+    )
+
+    def sdk: String = computepp.!!
+
   }
   case class DPCPP(dpcpp: File, oclcpu: File, tbb: File, key: String, abbr: String) extends Sycl {
     def paths = Vector("dpcpp" -> dpcpp, "oclcpu" -> oclcpu, "tbb" -> tbb)
+    def envs: Vector[String] = Vector(
+      prependFileEnvs(
+        "LD_LIBRARY_PATH",
+        dpcpp / "lib",
+        tbb / "lib/intel64/gcc4.8",
+        oclcpu / "x64"
+      ),
+      fileEnvs("OCL_ICD_FILENAMES", oclcpu / "x64" / "libintelocl.so")
+    )
+
+    def `clang++` : String = (dpcpp / "bin" / "clang++").!!
+    def include: String    = (dpcpp / "include" / "sycl").!!
+
   }
   case class hipSYCL(path: File, key: String, abbr: String) extends Sycl {
     def paths = Vector("dir" -> path)

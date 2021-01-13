@@ -3,13 +3,16 @@ import Platform._
 import SC._
 import better.files.File
 
+import scala.concurrent.duration.DurationInt
+import scala.languageFeature.postfixOps
+
 object CloverLeaf {
 
   private def setup(
       repo: File,
       platform: Platform,
       cmakeOpts: Vector[(String, String)],
-      runlineEnv: String
+      exports: String*
   ) = {
 
     val mpiPath = platform match {
@@ -17,17 +20,11 @@ object CloverLeaf {
       case l: Local                           => l.oneapiMPIPath
     }
 
-    val deviceName = platform match {
-      case RomeIsambardMACS => "AMD"
-      case CxlIsambardMACS  => "Xeon"
-      case l: Local         => l.deviceSubstring
-    }
-
     RunSpec(
-      s"export $runlineEnv" +: (platform match {
+      (platform match {
         case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
         case _                                  => Vector()
-      }),
+      }) ++ exports.map(e => s"export $e"),
       s"cd ${repo.^?}" +: cmake(
         target = "cloverleaf",
         build = repo / "build",
@@ -39,46 +36,47 @@ object CloverLeaf {
         ): _*
       ) :+ s"cp ${(repo / "build" / "cloverleaf").^?} ${repo.^?}",
       Vector(
-        s"$runlineEnv ${(repo / "cloverleaf").^?} --file ${(repo / "InputDecks" / "clover_bm16_short.in").^?} --device $deviceName"
+        s"cd ${repo.^?}",
+        s"${(repo / "cloverleaf").^?} --file ${(repo / "InputDecks" / "clover_bm16_short.in").^?} --device ${platform.deviceSubstring}"
       )
     )
 
   }
 
   val Def = Project(
-    "cloverleaf",
-    "c",
-    "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
-    {
-      case (repo, platform, Sycl.ComputeCpp(computepp, oclcpu, tbb, _, _)) =>
+    name = "cloverleaf",
+    abbr = "c",
+    gitRepo = "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
+    timeout = 2 minutes,
+    run = {
+      case (repo, platform, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
         setup(
           repo,
           platform,
           Vector(
             "SYCL_RUNTIME"       -> "COMPUTECPP",
-            "ComputeCpp_DIR"     -> computepp.^,
+            "ComputeCpp_DIR"     -> computecpp.sdk,
             "CMAKE_C_COMPILER"   -> "gcc",
             "CMAKE_CXX_COMPILER" -> "g++"
           ),
-          LD_LIBRARY_PATH_=(tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
+          computecpp.envs: _*
         )
 
-      case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
-        val toolchainFlag = platform match {
-          case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
-            s"--gcc-toolchain=$EvalGCCPathExpr"
-          case _ => ""
-        }
+      case (repo, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
         setup(
           repo,
-          platform,
+          p,
           Vector(
-            "SYCL_RUNTIME"    -> "DPCPP",
-            "DPCPP_BIN"       -> (dpcpp / "bin" / "clang++").!!,
-            "DPCPP_INCLUDE"   -> (dpcpp / "include" / "sycl").!!,
-            "CXX_EXTRA_FLAGS" -> s"-fsycl $toolchainFlag"
+            "SYCL_RUNTIME"  -> "DPCPP",
+            "DPCPP_BIN"     -> dpcpp.`clang++`,
+            "DPCPP_INCLUDE" -> dpcpp.include,
+            "CXX_EXTRA_FLAGS" -> s"-fsycl -march=${p.march} ${p match {
+              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+                s"--gcc-toolchain=$EvalGCCPathExpr"
+              case _ => ""
+            }}"
           ),
-          LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
+          dpcpp.envs: _*
         )
       case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
     }

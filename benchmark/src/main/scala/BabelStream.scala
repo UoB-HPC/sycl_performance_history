@@ -3,13 +3,16 @@ import Platform._
 import SC._
 import better.files.File
 
+import scala.concurrent.duration.DurationInt
+import scala.languageFeature.postfixOps
+
 object BabelStream {
 
   private def setup(
       repo: File,
       platform: Platform,
       makeOpts: Vector[(String, String)],
-      runlineEnv: String
+      exports: String*
   ) = {
 
     val deviceName = platform match {
@@ -21,17 +24,17 @@ object BabelStream {
     val exe = (repo / "sycl-stream").^?
 
     RunSpec(
-      prelude = s"export $runlineEnv" +:
-        (platform match {
-          case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
-          case _                                  => Vector()
-        }),
+      prelude = (platform match {
+        case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
+        case _                                  => Vector()
+      }) ++ exports.map(e => s"export $e"),
       build = s"cd ${repo.^?} " +:
         make(
           makefile = repo / "SYCL.make",
           makeOpts: _*
         ),
       run = Vector(
+        s"cd ${repo.^?}",
         s"""export DEVICE=$$($exe --list | grep "$deviceName" | cut -d ':' -f1)""",
         s"""echo "Using device $$DEVICE which matches substring $deviceName" """,
         s"$exe --device $$DEVICE"
@@ -41,41 +44,40 @@ object BabelStream {
   }
 
   val Def = Project(
-    "babelstream",
-    "s",
-    "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
+    name = "babelstream",
+    abbr = "s",
+    gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
+    timeout = 1 minute,
     {
-      case (repo, platform, Sycl.ComputeCpp(computepp, oclcpu, tbb, _, _)) =>
+      case (repo, platform, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
         setup(
           repo,
           platform,
           Vector(
             "COMPILER"     -> "COMPUTECPP",
             "TARGET"       -> "CPU",
-            "SYCL_SDK_DIR" -> computepp.!!,
+            "SYCL_SDK_DIR" -> computecpp.sdk,
             "EXTRA_FLAGS"  -> "-DCL_TARGET_OPENCL_VERSION=220 -D_GLIBCXX_USE_CXX11_ABI=0"
           ),
-          LD_LIBRARY_PATH_=(tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
+          computecpp.envs: _*
         )
 
-      case (repo, platform, Sycl.DPCPP(dpcpp, oclcpu, tbb, _, _)) =>
-
-        val toolchainFlag = platform match {
-          case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
-            s"--gcc-toolchain=$EvalGCCPathExpr"
-          case _ => ""
-        }
+      case (repo, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
         setup(
           repo,
-          platform,
+          p,
           Vector(
             "COMPILER"           -> "DPCPP",
             "TARGET"             -> "CPU",
-            "SYCL_DPCPP_CXX"     -> (dpcpp / "bin" / "clang++").!!,
-            "SYCL_DPCPP_INCLUDE" -> s"-I${(dpcpp / "include" / "sycl").!!}",
-            "EXTRA_FLAGS"        -> s"-DCL_TARGET_OPENCL_VERSION=220 -fsycl $toolchainFlag"
+            "SYCL_DPCPP_CXX"     -> dpcpp.`clang++`,
+            "SYCL_DPCPP_INCLUDE" -> s"-I${dpcpp.include}",
+            "EXTRA_FLAGS" -> s"-DCL_TARGET_OPENCL_VERSION=220 -fsycl -march=${p.march} ${p match {
+              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+                s"--gcc-toolchain=$EvalGCCPathExpr"
+              case _ => ""
+            }}"
           ),
-          LD_LIBRARY_PATH_=(dpcpp / "lib", tbb / "lib/intel64/gcc4.8", oclcpu / "x64")
+          dpcpp.envs: _*
         )
       case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
     }
