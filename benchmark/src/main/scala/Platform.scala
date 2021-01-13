@@ -106,8 +106,21 @@ object Platform {
     val oneapiMPIPath: File = File("/opt/intel/oneapi/mpi/2021.1.1")
   }
 
-  case object LocalAMDCPU   extends Local("amd", "native", "AMD")
-  case object LocalIntelGPU extends Local("intel", "native", "Intel")
-  case object LocalIntelCPU extends Local("intel", "native", "Intel")
+  case object UoBZoo{
+      val oneapiMPIPath: File =
+          File("/nfs/software/x86_64/intel/oneapi/2021.1/mpi/2021.1.1")
+      val oneapiLibFabricPath: File = oneapiMPIPath / "libfabric"
+      val setupModules = Vector(
+          "module purge",
+          "module load cmake/3.19.1",
+          "module load gcc/8.3.0"
+      )
+  }
+
+  case object IrisPro580UoBZoo extends Local("irispro580", "native", "Intel")
+
+  case object LocalAMDCPU      extends Local("amd", "native", "AMD")
+  case object LocalIntelGPU    extends Local("intel", "native", "Intel")
+  case object LocalIntelCPU    extends Local("intel", "native", "Intel")
 
 }

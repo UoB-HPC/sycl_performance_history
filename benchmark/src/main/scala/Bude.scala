@@ -14,7 +14,8 @@ object Bude {
       prelude = (p match {
         case Platform.CxlIsambardMACS | Platform.RomeIsambardMACS =>
           Platform.IsambardMACS.setupModules
-        case _ => Vector()
+        case Platform.IrisPro580UoBZoo => Platform.UoBZoo.setupModules
+        case _                         => Vector()
       }) ++ exports.map(e => s"export $e"),
       build = s"cd ${repo.^?} " +:
         cmake(
@@ -62,7 +63,7 @@ object Bude {
             "DPCPP_BIN"     -> dpcpp.`clang++`,
             "DPCPP_INCLUDE" -> dpcpp.include,
             "CXX_EXTRA_FLAGS" -> s"-fsycl -march=${p.march} ${p match {
-              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
             }}",
