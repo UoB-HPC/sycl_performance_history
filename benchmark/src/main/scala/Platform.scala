@@ -39,6 +39,7 @@ object Platform {
     s"""|#!/bin/bash
         |#PBS -q $queue
         |#PBS -l select=1:ncpus=$cpus
+		|#PBS -l place=excl
         |#PBS -l walltime=${d.toHoursPart}:${d.toMinutesPart}:${d.toSecondsPart}
         |#PBS -joe
         |set -eu
