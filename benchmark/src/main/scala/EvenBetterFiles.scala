@@ -7,7 +7,7 @@ import java.net.URI
 import java.net.http.HttpClient.{Redirect, Version}
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.http.{HttpClient, HttpRequest}
-import java.nio.file.attribute.PosixFilePermission
+import java.nio.file.attribute.{FileTime, PosixFilePermission}
 import java.nio.file.{Files, Paths}
 import java.time.Duration
 
@@ -42,16 +42,21 @@ object EvenBetterFiles {
       case null => None
       case entry =>
         if (!taris.canReadEntryData(entry)) throw new IOException(s"Can't read $entry")
-        if (!entry.isDirectory) {
-          val file   = destination / entry.getName
+        val file = destination / entry.getName
+        def touch() =
+          Files.setLastModifiedTime(file.path, FileTime.from(entry.getLastModifiedDate.toInstant))
+        if (entry.isDirectory) {
+          file.createDirectoryIfNotExists()
+          touch()
+        } else if (entry.isSymbolicLink) {
           val parent = file.parent.createDirectoryIfNotExists(createParents = true)
-          if (entry.isSymbolicLink) {
-            val target = parent / entry.getLinkName
-            target.parent.createDirectoryIfNotExists(createParents = true)
-            Files.createSymbolicLink(file.path, Paths.get(entry.getLinkName))
-          } else if (entry.isFile) Files.copy(taris, file.path)
-          else throw new IOException(s"Can't handle entry ${entry.getName}")
-        }
+          val target = parent / entry.getLinkName
+          target.parent.createDirectoryIfNotExists(createParents = true)
+          Files.createSymbolicLink(file.path, Paths.get(entry.getLinkName))
+        } else if (entry.isFile) {
+          Files.copy(taris, file.path)
+          touch()
+        } else throw new IOException(s"Can't handle entry ${entry.getName}")
         Some(() -> taris.getNextTarEntry)
     }).get
     ()
