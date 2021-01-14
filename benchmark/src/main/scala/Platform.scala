@@ -13,6 +13,7 @@ sealed abstract class Platform(
     val hasQueue: Boolean,
     val isCPU: Boolean,
     val setupModules: Vector[String],
+    val streamArraySize: Option[Long],
     val submit: JobSpec => (String, File => Vector[String])
 )
 object Platform {
@@ -79,6 +80,7 @@ object Platform {
         hasQueue = true,
         isCPU = true,
         setupModules = IsambardMACS.setupModules,
+        streamArraySize = Some(math.pow(2, 29).toLong),
         submit = pbsCpu("romeq", 128)
       )
   case object CxlIsambardMACS
@@ -90,6 +92,7 @@ object Platform {
         hasQueue = true,
         isCPU = true,
         setupModules = IsambardMACS.setupModules,
+        streamArraySize = Some(math.pow(2, 29).toLong),
         submit = pbsCpu("clxq", 40)
       )
 
@@ -98,6 +101,7 @@ object Platform {
       march: String,
       deviceSubstring: String,
       setupModules: Vector[String],
+      streamArraySize: Option[Long] = None,
       isCPU: Boolean
   ) extends Platform(
         name = s"local-$name",
@@ -107,6 +111,7 @@ object Platform {
         hasQueue = false,
         isCPU = isCPU,
         setupModules = setupModules,
+        streamArraySize = streamArraySize,
         submit = spec => {
           s"""|#!/bin/bash
               |date

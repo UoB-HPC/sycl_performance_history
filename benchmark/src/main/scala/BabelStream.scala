@@ -34,7 +34,7 @@ object BabelStream {
         s"cd ${repo.^?}",
         s"""export DEVICE=$$($exe --list | grep "$deviceName" | cut -d ':' -f1)""",
         s"""echo "Using device $$DEVICE which matches substring $deviceName" """,
-        s"$exe --device $$DEVICE --arraysize $$((2 ** 29))"
+        s"$exe --device $$DEVICE ${platform.streamArraySize.fold("")(n => s"--arraysize $n")}"
       )
     )
 
