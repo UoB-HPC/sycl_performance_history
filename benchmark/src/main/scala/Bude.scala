@@ -45,7 +45,7 @@ object Bude {
             "ComputeCpp_DIR"    -> computecpp.sdk,
             "NUM_TD_PER_THREAD" -> "2"
           ) ++ (p match {
-            case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+            case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
               Vector("OpenCL_LIBRARY" -> (oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
