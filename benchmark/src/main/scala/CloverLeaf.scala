@@ -43,7 +43,7 @@ object CloverLeaf {
       Vector(
         s"cd ${repo.^?}",
         s"${(repo / "cloverleaf").^?} " +
-          s"--file ${(repo / "InputDecks" / "clover_bm16_short.in").^?} " +
+          s"--file ${(repo / "InputDecks" / "clover_bm16.in").^?} " +
           s"""--device "${platform.deviceSubstring}""""
       )
     )
@@ -54,7 +54,7 @@ object CloverLeaf {
     name = "cloverleaf",
     abbr = "c",
     gitRepo = "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
-    timeout = 10 minutes,
+    timeout = 4000 seconds,
     run = {
       case (repo, p, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
         setup(
