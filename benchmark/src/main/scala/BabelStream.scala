@@ -35,7 +35,8 @@ object BabelStream {
         ),
       run = Vector(
         s"cd ${repo.^?}",
-        s"""export DEVICE=$$($exe --list | grep "${platform.deviceSubstring}" | cut -d ':' -f1)""",
+        s"$exe --list",
+        s"""export DEVICE=$$($exe --list | grep "${platform.deviceSubstring}" | cut -d ':' -f1 | head -n 1)""",
         s"""echo "Using device $$DEVICE which matches substring ${platform.deviceSubstring}" """,
         s"$exe --device $$DEVICE ${platform.streamArraySize.fold("")(n => s"--arraysize $n")}"
       )
