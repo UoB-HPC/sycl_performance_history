@@ -140,7 +140,11 @@ object Platform {
         "irispro580",
         "native",
         "Intel(R) Graphics",
-        UoBZoo.setupModules :+ "module load intel/neo/20.49.18626",
+        UoBZoo.setupModules ++ Vector(
+          "module load khronos/opencl/headers",
+          "module load khronos/opencl/icd-loader",
+          "module load intel/neo/20.49.18626"
+        ),
         isCPU = false
       )
 
