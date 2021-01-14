@@ -27,23 +27,16 @@ object Platform {
 
   val PbsProNameLengthLimit = 15
 
-  def pbsCpu(queue: String, cpus: Int): JobSpec => (String, File => Vector[String]) = { spec =>
-    val d = java.time.Duration.ofNanos(spec.timeout.toNanos)
-    // PBS can't handle path with lustre included for some reason
-    def normalisePbsPath(f: File) = {
-      val absoluteHome  = Paths.get("/lustre/home")
-      val symlinkedHome = Paths.get("/home")
-      if (f.path.startsWith(absoluteHome)) {
-        val g = symlinkedHome.resolve(absoluteHome.relativize(f.path))
-        println(s"Translating PBS path: $f -> $g")
-        File(g)
-      } else f
-    }
-    val prefix = normalisePbsPath(spec.outPrefix)
+  def genericPBS(
+      queue: String,
+      mapPath: File => File,
+      pbsOpts: String*
+  ): JobSpec => (String, File => Vector[String]) = { spec =>
+    val d      = java.time.Duration.ofNanos(spec.timeout.toNanos)
+    val prefix = mapPath(spec.outPrefix)
     s"""|#!/bin/bash
         |#PBS -q $queue
-        |#PBS -l select=1:ncpus=$cpus
-        |#PBS -l place=excl
+        |${pbsOpts.map(opt => s"#PBS $opt").mkString("\n")}
         |#PBS -l walltime=${d.toHoursPart}:${d.toMinutesPart}:${d.toSecondsPart}
         |#PBS -joe
         |set -eu
@@ -53,10 +46,26 @@ object Platform {
       Vector(
         s"""qsub -o "$prefix.out" -e "$prefix.err" -N "${spec.name.take(
           PbsProNameLengthLimit
-        )}" -V ${normalisePbsPath(f).^?} """
+        )}" -V ${mapPath(f).^?} """
       )
     }
   }
+
+  def lustreNCpu(queue: String, cpus: Int): JobSpec => (String, File => Vector[String]) =
+    genericPBS(
+      queue,
+      { f =>
+        val absoluteHome  = Paths.get("/lustre/home")
+        val symlinkedHome = Paths.get("/home")
+        if (f.path.startsWith(absoluteHome)) {
+          val g = symlinkedHome.resolve(absoluteHome.relativize(f.path))
+          println(s"Translating PBS path: $f -> $g")
+          File(g)
+        } else f
+      },
+      s"-l select=1:ncpus=$cpus",
+      "-l place=excl"
+    )
 
   object IsambardMACS {
     val oneapiMPIPath: File =
@@ -81,7 +90,7 @@ object Platform {
         isCPU = true,
         setupModules = IsambardMACS.setupModules,
         streamArraySize = Some(math.pow(2, 29).toLong),
-        submit = pbsCpu("romeq", 128)
+        submit = lustreNCpu("romeq", 128)
       )
   case object CxlIsambardMACS
       extends Platform(
@@ -93,7 +102,33 @@ object Platform {
         isCPU = true,
         setupModules = IsambardMACS.setupModules,
         streamArraySize = Some(math.pow(2, 29).toLong),
-        submit = pbsCpu("clxq", 40)
+        submit = lustreNCpu("clxq", 40)
+      )
+
+  case object UoBZoo {
+    val oneapiMPIPath: File =
+      File("/nfs/software/x86_64/intel/oneapi/2021.1/mpi/2021.1.1")
+    val oneapiLibFabricPath: File = oneapiMPIPath / "libfabric"
+    val setupModules = Vector(
+      "module purge",
+      "module load cmake/3.19.1",
+      "module load gcc/8.3.0"
+    )
+  }
+
+  case object IrisPro580UoBZoo
+      extends Platform(
+        name = "irispro580-zoo",
+        abbr = "i",
+        march = "skylake", //NUC is i7-6770HQ
+        deviceSubstring = "Intel(R) Graphics",
+        hasQueue = true,
+        isCPU = false,
+        setupModules = UoBZoo.setupModules ++ Vector(
+          "module load intel/neo/20.49.18626"
+        ),
+        streamArraySize = None,
+        submit = genericPBS("workq", identity, "-l select=1:ngpus=1:gputype=irispro580")
       )
 
   sealed abstract class Local(
@@ -104,8 +139,8 @@ object Platform {
       streamArraySize: Option[Long] = None,
       isCPU: Boolean
   ) extends Platform(
-        name = s"local-$name",
-        abbr = s"l-$name",
+        name = s"$name-local",
+        abbr = s"$name-l",
         march = march,
         deviceSubstring = deviceSubstring,
         hasQueue = false,
@@ -124,30 +159,8 @@ object Platform {
     val oneapiMPIPath: File = File("/opt/intel/oneapi/mpi/2021.1.1")
   }
 
-  case object UoBZoo {
-    val oneapiMPIPath: File =
-      File("/nfs/software/x86_64/intel/oneapi/2021.1/mpi/2021.1.1")
-    val oneapiLibFabricPath: File = oneapiMPIPath / "libfabric"
-    val setupModules = Vector(
-      "module purge",
-      "module load cmake/3.19.1",
-      "module load gcc/8.3.0"
-    )
-  }
-
-  case object IrisPro580UoBZoo
-      extends Local(
-        "irispro580",
-        "native",
-        "Intel(R) Graphics",
-        UoBZoo.setupModules ++ Vector(
-          "module load intel/neo/20.49.18626"
-        ),
-        isCPU = false
-      )
-
   case object LocalAMDCPU   extends Local("amd", "native", "AMD", Vector(), isCPU = true)
-  case object LocalIntelGPU extends Local("intel", "native", "Intel", Vector(), isCPU = false)
   case object LocalIntelCPU extends Local("intel", "native", "Intel", Vector(), isCPU = true)
+  case object LocalIntelGPU extends Local("intel", "native", "Intel", Vector(), isCPU = false)
 
 }
