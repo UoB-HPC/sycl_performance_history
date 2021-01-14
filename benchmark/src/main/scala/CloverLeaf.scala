@@ -20,6 +20,11 @@ object CloverLeaf {
           prependFileEnvs("LD_LIBRARY_PATH", IsambardMACS.oneapiLibFabricPath / "lib"),
           prependFileEnvs("FI_PROVIDER_PATH", IsambardMACS.oneapiLibFabricPath / "lib" / "prov")
         ) -> IsambardMACS.oneapiMPIPath
+      case IrisPro580UoBZoo =>
+        Vector(
+          prependFileEnvs("LD_LIBRARY_PATH", UoBZoo.oneapiLibFabricPath / "lib"),
+          prependFileEnvs("FI_PROVIDER_PATH", UoBZoo.oneapiLibFabricPath / "lib" / "prov")
+        ) -> UoBZoo.oneapiMPIPath
       case l: Local => Vector() -> l.oneapiMPIPath
     }
 
