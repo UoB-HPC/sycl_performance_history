@@ -21,7 +21,10 @@ object Bude {
         s"cp ${(repo / "build" / "bude").^?} ${repo.^?}",
       run = Vector(
         s"cd ${wd.^?}",
-        s"${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device ${platform.deviceSubstring}"
+        s"${(repo / "bude").^?} -n 65536 -i 8 " +
+          s"--deck ${(wd / "data" / "bm1").^?} " +
+          s"--wgsize 0 " +
+          s"""--device "${platform.deviceSubstring}""""
       )
     )
 

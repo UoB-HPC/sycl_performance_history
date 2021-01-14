@@ -39,7 +39,7 @@ object CloverLeaf {
         s"cd ${repo.^?}",
         s"${(repo / "cloverleaf").^?} " +
           s"--file ${(repo / "InputDecks" / "clover_bm16_short.in").^?} " +
-          s"--device ${platform.deviceSubstring}"
+          s"""--device "${platform.deviceSubstring}""""
       )
     )
 
