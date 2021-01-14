@@ -1,5 +1,4 @@
 import Main._
-import Platform._
 import SC._
 import better.files.File
 
@@ -15,16 +14,20 @@ object BabelStream {
       exports: String*
   ) = {
 
-    val deviceName = platform match {
-      case RomeIsambardMACS => "AMD"
-      case CxlIsambardMACS  => "Xeon"
-      case l: Local         => l.deviceSubstring
-    }
-
     val exe = (repo / "sycl-stream").^?
 
+    val modules = platform match {
+      case Platform.IrisPro580UoBZoo =>
+        platform.setupModules ++
+          Vector(
+            "module load khronos/opencl/headers",
+            "module load khronos/opencl/icd-loader"
+          )
+      case _ => platform.setupModules
+    }
+
     RunSpec(
-      prelude = platform.setupModules ++ exports.map(e => s"export $e"),
+      prelude = modules ++ exports.map(e => s"export $e"),
       build = s"cd ${repo.^?} " +:
         make(
           makefile = repo / "SYCL.make",
@@ -32,8 +35,8 @@ object BabelStream {
         ),
       run = Vector(
         s"cd ${repo.^?}",
-        s"""export DEVICE=$$($exe --list | grep "$deviceName" | cut -d ':' -f1)""",
-        s"""echo "Using device $$DEVICE which matches substring $deviceName" """,
+        s"""export DEVICE=$$($exe --list | grep "${platform.deviceSubstring}" | cut -d ':' -f1)""",
+        s"""echo "Using device $$DEVICE which matches substring ${platform.deviceSubstring}" """,
         s"$exe --device $$DEVICE ${platform.streamArraySize.fold("")(n => s"--arraysize $n")}"
       )
     )
