@@ -7,16 +7,11 @@ import scala.language.postfixOps
 
 object Bude {
 
-  def setup(wd: File, p: Platform, cmakeOpts: Vector[(String, String)], exports: String*) = {
+  def setup(wd: File, platform: Platform, cmakeOpts: Vector[(String, String)], exports: String*) = {
     val repo = wd / "sycl"
 
     RunSpec(
-      prelude = (p match {
-        case Platform.CxlIsambardMACS | Platform.RomeIsambardMACS =>
-          Platform.IsambardMACS.setupModules
-        case Platform.IrisPro580UoBZoo => Platform.UoBZoo.setupModules
-        case _                         => Vector()
-      }) ++ exports.map(e => s"export $e"),
+      prelude = platform.setupModules ++ exports.map(e => s"export $e"),
       build = s"cd ${repo.^?} " +:
         cmake(
           target = "bude",
@@ -26,7 +21,7 @@ object Bude {
         s"cp ${(repo / "build" / "bude").^?} ${repo.^?}",
       run = Vector(
         s"cd ${wd.^?}",
-        s"${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device ${p.deviceSubstring}"
+        s"${(repo / "bude").^?} -n 65536 -i 8 --deck ${(wd / "data" / "bm1").^?} --wgsize 0 --device ${platform.deviceSubstring}"
       )
     )
 
@@ -51,7 +46,7 @@ object Bude {
               Vector("OpenCL_LIBRARY" -> (oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
-          computecpp.envs: _*
+          (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
       case (wd, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
@@ -69,7 +64,7 @@ object Bude {
             }}",
             "NUM_TD_PER_THREAD" -> "2"
           ),
-          dpcpp.envs: _*
+          (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
 
       case (wd, p, Sycl.hipSYCL(path, _, _)) => ???

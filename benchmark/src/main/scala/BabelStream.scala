@@ -24,10 +24,7 @@ object BabelStream {
     val exe = (repo / "sycl-stream").^?
 
     RunSpec(
-      prelude = (platform match {
-        case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
-        case _                                  => Vector()
-      }) ++ exports.map(e => s"export $e"),
+      prelude = platform.setupModules ++ exports.map(e => s"export $e"),
       build = s"cd ${repo.^?} " +:
         make(
           makefile = repo / "SYCL.make",
@@ -49,17 +46,17 @@ object BabelStream {
     gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
     timeout = 5 minute,
     {
-      case (repo, platform, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
+      case (repo, p, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
         setup(
           repo,
-          platform,
+          p,
           Vector(
             "COMPILER"     -> "COMPUTECPP",
             "TARGET"       -> "CPU",
             "SYCL_SDK_DIR" -> computecpp.sdk,
             "EXTRA_FLAGS"  -> "-DCL_TARGET_OPENCL_VERSION=220 -D_GLIBCXX_USE_CXX11_ABI=0"
           ),
-          computecpp.envs: _*
+          (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
       case (repo, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
@@ -72,12 +69,12 @@ object BabelStream {
             "SYCL_DPCPP_CXX"     -> dpcpp.`clang++`,
             "SYCL_DPCPP_INCLUDE" -> s"-I${dpcpp.include}",
             "EXTRA_FLAGS" -> s"-DCL_TARGET_OPENCL_VERSION=220 -fsycl -march=${p.march} ${p match {
-              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
             }}"
           ),
-          dpcpp.envs: _*
+          (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
       case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
     }

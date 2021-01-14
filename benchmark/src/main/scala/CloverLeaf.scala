@@ -24,10 +24,7 @@ object CloverLeaf {
     }
 
     RunSpec(
-      (platform match {
-        case CxlIsambardMACS | RomeIsambardMACS => IsambardMACS.setupModules
-        case _                                  => Vector()
-      }) ++ (exports ++ mpiEnvs).map(e => s"export $e"),
+      platform.setupModules ++ (exports ++ mpiEnvs).map(e => s"export $e"),
       s"cd ${repo.^?}" +: cmake(
         target = "cloverleaf",
         build = repo / "build",
@@ -54,17 +51,17 @@ object CloverLeaf {
     gitRepo = "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
     timeout = 10 minutes,
     run = {
-      case (repo, platform, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
+      case (repo, p, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
         setup(
           repo,
-          platform,
+          p,
           Vector(
             "SYCL_RUNTIME"       -> "COMPUTECPP",
             "ComputeCpp_DIR"     -> computecpp.sdk,
             "CMAKE_C_COMPILER"   -> "gcc",
             "CMAKE_CXX_COMPILER" -> "g++"
           ),
-          computecpp.envs: _*
+          (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
       case (repo, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
@@ -76,12 +73,12 @@ object CloverLeaf {
             "DPCPP_BIN"     -> dpcpp.`clang++`,
             "DPCPP_INCLUDE" -> dpcpp.include,
             "CXX_EXTRA_FLAGS" -> s"-fsycl -march=${p.march} ${p match {
-              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
             }}"
           ),
-          dpcpp.envs: _*
+          (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
       case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
     }

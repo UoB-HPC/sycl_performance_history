@@ -11,6 +11,8 @@ sealed abstract class Platform(
     val march: String,
     val deviceSubstring: String,
     val hasQueue: Boolean,
+    val isCPU: Boolean,
+    val setupModules: Vector[String],
     val submit: JobSpec => (String, File => Vector[String])
 )
 object Platform {
@@ -75,6 +77,8 @@ object Platform {
         march = "znver2",
         deviceSubstring = "AMD",
         hasQueue = true,
+        isCPU = true,
+        setupModules = IsambardMACS.setupModules,
         submit = pbsCpu("romeq", 128)
       )
   case object CxlIsambardMACS
@@ -84,16 +88,25 @@ object Platform {
         march = "skylake-avx512",
         deviceSubstring = "Xeon",
         hasQueue = true,
+        isCPU = true,
+        setupModules = IsambardMACS.setupModules,
         submit = pbsCpu("clxq", 40)
       )
 
-  sealed abstract class Local(name: String, march: String, deviceSubstring: String)
-      extends Platform(
+  sealed abstract class Local(
+      name: String,
+      march: String,
+      deviceSubstring: String,
+      setupModules: Vector[String],
+      isCPU: Boolean
+  ) extends Platform(
         name = s"local-$name",
         abbr = s"l-$name",
         march = march,
         deviceSubstring = deviceSubstring,
         hasQueue = false,
+        isCPU = isCPU,
+        setupModules = setupModules,
         submit = spec => {
           s"""|#!/bin/bash
               |date
@@ -106,21 +119,28 @@ object Platform {
     val oneapiMPIPath: File = File("/opt/intel/oneapi/mpi/2021.1.1")
   }
 
-  case object UoBZoo{
-      val oneapiMPIPath: File =
-          File("/nfs/software/x86_64/intel/oneapi/2021.1/mpi/2021.1.1")
-      val oneapiLibFabricPath: File = oneapiMPIPath / "libfabric"
-      val setupModules = Vector(
-          "module purge",
-          "module load cmake/3.19.1",
-          "module load gcc/8.3.0"
-      )
+  case object UoBZoo {
+    val oneapiMPIPath: File =
+      File("/nfs/software/x86_64/intel/oneapi/2021.1/mpi/2021.1.1")
+    val oneapiLibFabricPath: File = oneapiMPIPath / "libfabric"
+    val setupModules = Vector(
+      "module purge",
+      "module load cmake/3.19.1",
+      "module load gcc/8.3.0"
+    )
   }
 
-  case object IrisPro580UoBZoo extends Local("irispro580", "native", "Intel")
+  case object IrisPro580UoBZoo
+      extends Local(
+        "irispro580",
+        "native",
+        "Intel(R) Graphics",
+        UoBZoo.setupModules :+ "module load intel/neo/20.49.18626",
+        isCPU = false
+      )
 
-  case object LocalAMDCPU      extends Local("amd", "native", "AMD")
-  case object LocalIntelGPU    extends Local("intel", "native", "Intel")
-  case object LocalIntelCPU    extends Local("intel", "native", "Intel")
+  case object LocalAMDCPU   extends Local("amd", "native", "AMD", Vector(), isCPU = true)
+  case object LocalIntelGPU extends Local("intel", "native", "Intel", Vector(), isCPU = false)
+  case object LocalIntelCPU extends Local("intel", "native", "Intel", Vector(), isCPU = true)
 
 }
