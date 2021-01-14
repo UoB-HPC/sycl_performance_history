@@ -66,7 +66,7 @@ object CloverLeaf {
             "CMAKE_C_COMPILER"   -> "gcc",
             "CMAKE_CXX_COMPILER" -> "g++"
           ) ++ (p match {
-            case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+            case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo =>
               Vector("OpenCL_LIBRARY" -> (oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
@@ -82,7 +82,7 @@ object CloverLeaf {
             "DPCPP_BIN"     -> dpcpp.`clang++`,
             "DPCPP_INCLUDE" -> dpcpp.include,
             "CXX_EXTRA_FLAGS" -> s"-fsycl -march=${p.march} ${p match {
-              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
+              case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo =>
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
             }}"

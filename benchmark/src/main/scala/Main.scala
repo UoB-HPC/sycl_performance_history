@@ -42,6 +42,7 @@ object Main {
     val RunSpec(prelude, build, run) = project.run(repoRoot, platform, sycl)
 
     val jobFile = repoRoot / s"run.job"
+    val logFile = repoRoot / s"prepare.log"
     val (jobScript, submit) = platform.submit(
       Platform.JobSpec(
         name = s"${project.abbr}-${platform.abbr}-${sycl.abbr}",
@@ -86,20 +87,30 @@ object Main {
     script.overwrite(scriptContent)
     script.addPermission(PosixFilePermission.OWNER_EXECUTE)
 
-    def spawn(xs: String*) = {
+    def spawn(log: File)(xs: String*) = {
       import scala.sys.process._
-      val code = xs.!
-      println(s"Process exited with $code for `${xs.mkString(" ")}`")
+      val code = xs ! new FileProcessLogger(log.toJava)
+      println(s"Process exited with $code for `${xs.mkString(" ")}` &> $logFile")
       code
     }
 
-    def prepareProc = spawn("/bin/bash", s"$script", "prepare")
-    def runProc     = spawn("/bin/bash", s"$script", "run")
+    def prepareProc() = spawn(logFile)("/bin/bash", s"$script", "prepare")
+    def runProc()     = spawn(logFile)("/bin/bash", s"$script", "run")
 
     if (platform.hasQueue) {
-      (() => { prepareProc; runProc }) -> (() => 0)
+      (() => {
+        val code = prepareProc()
+        if (code == 0) {
+          runProc()
+        } else {
+          println(
+            s"Preparation terminated with non-zero exit code $code, not submitting, see $logFile"
+          )
+          code
+        }
+      }) -> (() => 0)
     } else {
-      (() => prepareProc) -> (() => runProc)
+      (() => prepareProc()) -> (() => runProc())
     }
 
   }
