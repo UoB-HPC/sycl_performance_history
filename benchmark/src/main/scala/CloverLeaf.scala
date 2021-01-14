@@ -56,7 +56,7 @@ object CloverLeaf {
     gitRepo = "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
     timeout = 4000 seconds,
     run = {
-      case (repo, p, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
+      case (repo, p, computecpp @ Sycl.ComputeCpp(_, oclcpu, _, _, _)) =>
         setup(
           repo,
           p,
@@ -65,7 +65,11 @@ object CloverLeaf {
             "ComputeCpp_DIR"     -> computecpp.sdk,
             "CMAKE_C_COMPILER"   -> "gcc",
             "CMAKE_CXX_COMPILER" -> "g++"
-          ),
+          ) ++ (p match {
+            case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS =>
+              Vector("OpenCL_LIBRARY" -> (oclcpu / "x64" / "libOpenCL.so").^)
+            case _ => Vector.empty
+          }),
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
