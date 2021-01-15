@@ -31,7 +31,7 @@ object Main {
 
     val cloneAndCd = Vector(
       s"cd ${workingDir.^?}",
-      s"if [[ -d ${repoRoot.^?} ]];then",
+      s"if [[ -d ${(repoRoot / ".git").^?} ]];then",
       s"cd ${repoRoot.^?}",
       "git fetch",
       "else",
@@ -42,8 +42,8 @@ object Main {
 
     val RunSpec(prelude, build, run) = project.run(repoRoot, platform, sycl)
 
-    val jobFile = repoRoot / s"run.job"
-    val logFile = repoRoot / s"prepare.log"
+    val jobFile = repoRoot / s"_run.job"
+    val logFile = workingDir / s"prepare.log"
     val (jobScript, submit) = platform.submit(
       Platform.JobSpec(
         name = s"${project.abbr}-${platform.abbr}-${sycl.abbr}",
@@ -57,21 +57,20 @@ object Main {
       s"""|#!/bin/bash
           |set -eu
           |
-		  |${prelude.mkString("\n")}
-		  |
+          |${prelude.mkString("\n")}
+          |
           |prepare() {
           |echo "[STAGING]$id: preparing..."
-          |${((cloneAndCd :+ s"touch ${logFile.^?}") ++ build).mkString("\n")}
+          |${(cloneAndCd ++ build).mkString("\n")}
           |echo "[STAGING]$id: preparation complete"
           |}
           |
           |run() {
           |echo "[STAGING]$id: submitting..."
-		  |
-		  |cat > $$${jobFile.^?} <<- "EOM"
+          |cat > $$${jobFile.^?} <<- "EOM"
           |$jobScript
           |EOM
-		  |chmod +x ${jobFile.^?}
+          |chmod +x ${jobFile.^?}
           |${submit(jobFile).mkString("\n")}
           |echo "[STAGING]$id: submitted"
           |}
@@ -79,7 +78,7 @@ object Main {
           |case $${1:-} in
           | prepare) "$$@"; exit;;
           | run)     "$$@"; exit;;
-		  | *)       prepare;run;;
+          | *)       prepare;run;;
           |esac
           |
           |""".stripMargin
@@ -88,11 +87,11 @@ object Main {
     script.overwrite(scriptContent)
     script.addPermission(PosixFilePermission.OWNER_EXECUTE)
 
-    def spawn(log: File)(xs: String*) = {
+    def spawn(xs: String*) = {
       import scala.sys.process._
-      logFile.clear()
+      logFile.createFileIfNotExists(createParents = true).clear()
       println(s"`${xs.mkString(" ")}` &> $logFile")
-      val logger = ProcessLogger(log.toJava)
+      val logger = ProcessLogger(logFile.toJava)
       val code   = xs ! logger
       logger.flush()
       logger.close()
@@ -102,8 +101,8 @@ object Main {
       code
     }
 
-    def prepareProc() = spawn(logFile)("/bin/bash", s"$script", "prepare")
-    def runProc()     = spawn(logFile)("/bin/bash", s"$script", "run")
+    def prepareProc() = spawn("/bin/bash", s"$script", "prepare")
+    def runProc()     = spawn("/bin/bash", s"$script", "run")
 
     if (platform.hasQueue) {
       (() => {
