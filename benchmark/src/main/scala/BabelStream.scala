@@ -63,22 +63,22 @@ object BabelStream {
           .ensureOne("Dot line")
     },
     run = {
-      case (repo, p, computecpp: Sycl.ComputeCpp) =>
+      case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          repo,
+          ctx.wd,
           p,
           Vector(
             "COMPILER"     -> "COMPUTECPP",
             "TARGET"       -> "CPU",
             "SYCL_SDK_DIR" -> computecpp.sdk,
-            "EXTRA_FLAGS"  -> "-DCL_TARGET_OPENCL_VERSION=220 -D_GLIBCXX_USE_CXX11_ABI=0"
+            "EXTRA_FLAGS"  -> s"-DCL_TARGET_OPENCL_VERSION=220 -D_GLIBCXX_USE_CXX11_ABI=0 -I${ctx.clHeaderInclude.^}"
           ),
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
-      case (repo, p, dpcpp: Sycl.DPCPP) =>
+      case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          repo,
+          ctx.wd,
           p,
           Vector(
             "COMPILER"           -> "DPCPP",
@@ -93,7 +93,7 @@ object BabelStream {
           ),
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
-      case (wd, p, hipsycl: Sycl.hipSYCL) => ???
+      case (ctx, p, hipsycl: Sycl.hipSYCL) => ???
     }
   )
 }

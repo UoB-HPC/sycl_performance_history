@@ -70,9 +70,9 @@ object CloverLeaf {
       }
     },
     run = {
-      case (repo, p, computecpp: Sycl.ComputeCpp) =>
+      case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          repo,
+          ctx.wd,
           p,
           Vector(
             "SYCL_RUNTIME"       -> "COMPUTECPP",
@@ -87,9 +87,9 @@ object CloverLeaf {
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
-      case (repo, p, dpcpp: Sycl.DPCPP) =>
+      case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          repo,
+          ctx.wd,
           p,
           Vector(
             "SYCL_RUNTIME"  -> "DPCPP",
@@ -103,7 +103,7 @@ object CloverLeaf {
           ),
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
-      case (wd, p, hipsycl: Sycl.hipSYCL) => ???
+      case (ctx, p, hipsycl: Sycl.hipSYCL) => ???
     }
   )
 }

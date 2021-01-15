@@ -233,4 +233,16 @@ object Sycl {
       }
   }
 
+  def primeCLHeaders(root: File, dirname: String): Unit = {
+    val tarball = root / "headers.tar.gz"
+    val dest    = root / dirname
+    println(s"Priming OpenCL headers for $root for $dest")
+    if (dest.notExists) {
+      wget("https://github.com/KhronosGroup/OpenCL-Headers/archive/v2020.06.16.tar.gz", tarball)
+      untarGz(tarball, dest)
+      moveAllChildUpOneLevel(dest)
+    }
+    fixPermissions(dest)
+  }
+
 }

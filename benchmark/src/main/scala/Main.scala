@@ -16,7 +16,8 @@ object Main {
       project: Project,
       platform: Platform,
       sycl: Sycl,
-      workingDir: File
+      workingDir: File,
+      clIncludeDir: File
   ): (() => Int, () => Int) = {
 
     workingDir.createDirectoryIfNotExists(createParents = true)
@@ -40,7 +41,8 @@ object Main {
       "fi"
     )
 
-    val RunSpec(prelude, build, run) = project.run(repoRoot, platform, sycl)
+    val RunSpec(prelude, build, run) =
+      project.run(Context(wd = repoRoot, clHeaderInclude = clIncludeDir), platform, sycl)
 
     val jobFile = repoRoot / s"_run.job"
     val logFile = workingDir / "logs" / s"$id.log"
@@ -124,13 +126,15 @@ object Main {
 
   case class RunSpec(prelude: Vector[String], build: Vector[String], run: Vector[String])
 
+  case class Context(wd: File, clHeaderInclude: File)
+
   case class Project(
       name: String,
       abbr: String,
       gitRepo: (String, String),
       timeout: Duration,
       extractResult: String => Either[String, String],
-      run: PartialFunction[(File, Platform, Sycl), RunSpec]
+      run: PartialFunction[(Context, Platform, Sycl), RunSpec]
   )
 
   implicit class RichIterator[A](private val xs: Iterator[A]) extends AnyVal {
@@ -173,6 +177,7 @@ object Main {
     val oclcpu     = File("../oclcpu").createDirectoryIfNotExists()
     val dpcpp      = File("../dpcpp").createDirectoryIfNotExists()
     val computecpp = File("../computecpp").createDirectoryIfNotExists()
+    val oclheaders = File("../ocl_headers").createDirectoryIfNotExists()
 
     def help() = println(s"""
                  |help                     - print this help
@@ -217,6 +222,7 @@ object Main {
         Sycl.primeOclCpu(oclcpu)
         Sycl.primeComputeCpp(Some(pool), computecpp)
         Sycl.primeDPCPP(dpcpp)
+        Sycl.primeCLHeaders(oclheaders, "include")
       case op :: project :: syclGlob :: platformGlob :: outDir :: parN :: Nil =>
         val out           = File(outDir).createDirectoryIfNotExists()
         val syclRegex     = globToRegexLite(syclGlob)
@@ -265,7 +271,7 @@ object Main {
                 project  <- projects
                 sycl     <- sycls
                 platform <- platforms
-              } yield runProject(project, platform, sycl, out)).unzip
+              } yield runProject(project, platform, sycl, out, oclheaders / "include")).unzip
 
             val parallel = parN.toLowerCase match {
               case "false" | "OFF" | "0" => 1
@@ -303,6 +309,14 @@ object Main {
 
   def main(args: Array[String]): Unit =
     run(args.toList)
+
+//    run(
+//      "bench" :: "babelstream" :: "computecpp*-oclcpu-202012" :: "amd-local" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil
+//    )
+
+//    run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
+
+//    run(args.toList)
 //    run(
 //      "tab" :: "cloverleaf" :: "*" :: "*" :: "/home/tom/Desktop/res/" :: "1" :: Nil
 //    )

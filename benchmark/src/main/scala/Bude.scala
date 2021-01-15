@@ -52,9 +52,9 @@ object Bude {
         }
     },
     run = {
-      case (wd, p, computecpp: Sycl.ComputeCpp) =>
+      case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          wd,
+          ctx.wd,
           p,
           Vector(
             "SYCL_RUNTIME"      -> "COMPUTECPP",
@@ -68,9 +68,9 @@ object Bude {
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
-      case (wd, p, dpcpp: Sycl.DPCPP) =>
+      case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          wd,
+          ctx.wd,
           p,
           Vector(
             "SYCL_RUNTIME"  -> "DPCPP",
@@ -86,7 +86,7 @@ object Bude {
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
 
-      case (wd, p, hipsycl: Sycl.hipSYCL) => ???
+      case (ctx, p, hipsycl: Sycl.hipSYCL) => ???
     }
   )
 }
