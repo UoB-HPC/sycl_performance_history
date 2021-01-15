@@ -91,7 +91,6 @@ object Main {
 
     def spawn(xs: String*) = {
       import scala.sys.process._
-      logFile.createFileIfNotExists(createParents = true).clear()
       println(s"`${xs.mkString(" ")}` &> $logFile")
       val logger = ProcessLogger(logFile.toJava)
       val code   = xs ! logger
@@ -103,6 +102,7 @@ object Main {
       code
     }
 
+    logFile.createFileIfNotExists(createParents = true).clear()
     def prepareProc() = spawn("/bin/bash", s"$script", "prepare")
     def runProc()     = spawn("/bin/bash", s"$script", "run")
 
