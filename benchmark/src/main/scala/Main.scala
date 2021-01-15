@@ -61,7 +61,7 @@ object Main {
 		  |
           |prepare() {
           |echo "[STAGING]$id: preparing..."
-          |${(cloneAndCd ++ build).mkString("\n")}
+          |${((cloneAndCd :+ s"touch ${logFile.^?}") ++ build).mkString("\n")}
           |echo "[STAGING]$id: preparation complete"
           |}
           |
@@ -90,7 +90,7 @@ object Main {
 
     def spawn(log: File)(xs: String*) = {
       import scala.sys.process._
-      logFile.createFileIfNotExists(createParents = true).clear()
+      logFile.clear()
       println(s"`${xs.mkString(" ")}` &> $logFile")
       val logger = ProcessLogger(log.toJava)
       val code   = xs ! logger
