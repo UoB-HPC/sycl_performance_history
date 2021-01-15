@@ -71,7 +71,12 @@ object BabelStream {
             "COMPILER"     -> "COMPUTECPP",
             "TARGET"       -> "CPU",
             "SYCL_SDK_DIR" -> computecpp.sdk,
-            "EXTRA_FLAGS"  -> s"-DCL_TARGET_OPENCL_VERSION=220 -D_GLIBCXX_USE_CXX11_ABI=0 -I${ctx.clHeaderInclude.^}"
+            "EXTRA_FLAGS" -> Vector(
+              s"-DCL_TARGET_OPENCL_VERSION=220",
+              "-D_GLIBCXX_USE_CXX11_ABI=0",
+              s"-I${ctx.clHeaderInclude.^}",
+              s"-L${(computecpp.oclcpu / "x64").^}"
+            ).mkString(" ")
           ),
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
