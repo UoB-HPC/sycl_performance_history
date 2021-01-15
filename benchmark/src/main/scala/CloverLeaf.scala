@@ -55,8 +55,22 @@ object CloverLeaf {
     abbr = "c",
     gitRepo = "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
     timeout = 4000 seconds,
+    extractResult = out => {
+      val xs = out.linesIterator.map(_.trim).toVector
+      xs.slice(
+        xs.indexWhere(_.startsWith(s"Test problem")),
+        xs.indexWhere(_.startsWith("Done"))
+      ).toList match {
+        case s"Test problem ${_} is within ${_} of the expected solution" ::
+            "This test is considered PASSED" ::
+            s"Wall clock ${wallclockSec}" ::
+            s"First step overhead ${_}" :: Nil =>
+          Right(wallclockSec)
+        case ys => Left(s"Output format invalid: \n${ys.mkString("\n")}")
+      }
+    },
     run = {
-      case (repo, p, computecpp @ Sycl.ComputeCpp(_, oclcpu, _, _, _)) =>
+      case (repo, p, computecpp: Sycl.ComputeCpp) =>
         setup(
           repo,
           p,
@@ -67,13 +81,13 @@ object CloverLeaf {
             "CMAKE_CXX_COMPILER" -> "g++"
           ) ++ (p match {
             case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo =>
-              Vector("OpenCL_LIBRARY" -> (oclcpu / "x64" / "libOpenCL.so").^)
+              Vector("OpenCL_LIBRARY" -> (computecpp.oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
-      case (repo, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
+      case (repo, p, dpcpp: Sycl.DPCPP) =>
         setup(
           repo,
           p,
@@ -89,7 +103,7 @@ object CloverLeaf {
           ),
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
-      case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
+      case (wd, p, hipsycl: Sycl.hipSYCL) => ???
     }
   )
 }

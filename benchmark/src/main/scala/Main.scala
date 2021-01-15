@@ -2,6 +2,7 @@ import SC.RichFile
 import better.files.File
 
 import java.nio.file.attribute.PosixFilePermission
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ForkJoinPool
 import scala.collection.parallel.CollectionConverters._
 import scala.collection.parallel.ForkJoinTaskSupport
@@ -128,8 +129,20 @@ object Main {
       abbr: String,
       gitRepo: (String, String),
       timeout: Duration,
+      extractResult: String => Either[String, String],
       run: PartialFunction[(File, Platform, Sycl), RunSpec]
   )
+
+  implicit class RichIterator[A](private val xs: Iterator[A]) extends AnyVal {
+    def ensureOne(msg: => String): Either[String, A] = {
+      val ys = xs.toSeq
+      if (ys.size != 1) {
+        Left(s"Expected 1 but got ${ys.size}: $msg\nResults: \n${ys.mkString(",")}")
+      } else {
+        Right(ys.head)
+      }
+    }
+  }
 
   val Projects = Vector(Bude.Def, CloverLeaf.Def, BabelStream.Def)
   val Platforms = Vector(
@@ -166,7 +179,7 @@ object Main {
                  |prime                    - download/copy compilers and prime them for use
                  |  <pool:dir>               - directory containing ComputeCpp tarballs
                  |list                     - lists all SYCL compilers, platforms,  and projects
-                 |bench                    - run benchmarks
+                 |bench|tab                  - run benchmarks or tabulate existing results
                  |  [<project:string>|all]   - the projects to run, see `list`
                  |  <sycl:glob>              - blob pattern of the sycl config tuple to use, see `list`
                  |  <platform:glob>          - the platforms to run on, see `list` 
@@ -204,40 +217,76 @@ object Main {
         Sycl.primeOclCpu(oclcpu)
         Sycl.primeComputeCpp(Some(pool), computecpp)
         Sycl.primeDPCPP(dpcpp)
-      case "bench" :: project :: syclGlob :: platformGlob :: outDir :: parN :: Nil =>
+      case op :: project :: syclGlob :: platformGlob :: outDir :: parN :: Nil =>
         val out           = File(outDir).createDirectoryIfNotExists()
         val syclRegex     = globToRegexLite(syclGlob)
         val platformRegex = globToRegexLite(platformGlob)
 
-        val (preps, runs) =
-          (for {
-            proj <- project.toLowerCase match {
-              case "all"  => Projects
-              case needle => Projects.filter(_.name == needle)
+        val projects = project.toLowerCase match {
+          case "all"  => Projects
+          case needle => Projects.filter(_.name == needle)
+        }
+        val sycls     = Sycl.list(oclcpu, dpcpp, computecpp).filter(s => syclRegex.matches(s.key))
+        val platforms = Platforms.filter(p => platformRegex.matches(p.name))
+
+        op match {
+          case "tab" =>
+            val resultsDir = (out / "results").createDirectoryIfNotExists()
+            for {
+              project       <- projects
+              platform      <- platforms
+              (name, sycls) <- sycls.groupBy(_.name)
+            } {
+              // per project-platform
+              // impl, released, value
+              val rows = for {
+                sycl <- sycls
+                result = resultsDir / s"${project.name}-${platform.name}-${sycl.key}.out"
+                if result.exists
+              } yield List(
+                sycl.ver,
+                sycl.released.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                project.extractResult(result.contentAsString) match {
+                  case Left(err) =>
+                    println(s"Extraction error in ${result.name}: \n$err")
+                    "NaN"
+                  case Right(x) => x
+                }
+              ).mkString(",")
+              if (rows.nonEmpty) {
+                val csv = resultsDir / s"${project.name}-${platform.name}-$name.csv"
+                println(s"$csv = ${rows.size} rows")
+                csv.overwrite(rows.mkString("\n"))
+              }
             }
-            sycl <- Sycl.list(oclcpu, dpcpp, computecpp).filter(s => syclRegex.matches(s.key))
+          case "bench" =>
+            val (preps, runs) =
+              (for {
+                project  <- projects
+                sycl     <- sycls
+                platform <- platforms
+              } yield runProject(project, platform, sycl, out)).unzip
 
-            platform <- Platforms.filter(p => platformRegex.matches(p.name))
-
-          } yield runProject(proj, platform, sycl, out)).unzip
-
-        val parallel = parN.toLowerCase match {
-          case "false" | "OFF" | "0" => 1
-          case n =>
-            n.toIntOption match {
-              case Some(x) => x
-              case None    => throw new Exception(s"can't parse $n for parN")
+            val parallel = parN.toLowerCase match {
+              case "false" | "OFF" | "0" => 1
+              case n =>
+                n.toIntOption match {
+                  case Some(x) => x
+                  case None    => throw new Exception(s"can't parse $n for parN")
+                }
             }
+
+            if (parallel > 1) {
+              val parxs = preps.par
+              parxs.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(parallel))
+              parxs.foreach(_())
+            } else preps.foreach(_())
+
+            println("Starting benchmarks:")
+            runs.foreach(_())
+
         }
 
-        if (parallel > 1) {
-          val parxs = preps.par
-          parxs.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(parallel))
-          parxs.foreach(_())
-        } else preps.foreach(_())
-
-        println("Starting benchmarks:")
-        runs.foreach(_())
       case "help" :: Nil => help()
       case bad =>
         println(s"Unsupported args: ${bad.mkString(" ")}")
@@ -245,8 +294,21 @@ object Main {
     }
   }
 
+  def processResults(
+      project: Seq[Project],
+      platform: Seq[Platform],
+      sycls: Seq[Sycl],
+      workingDir: File
+  ) = {}
+
   def main(args: Array[String]): Unit =
     run(args.toList)
+//    run(
+//      "tab" :: "cloverleaf" :: "*" :: "*" :: "/home/tom/Desktop/res/" :: "1" :: Nil
+//    )
+
+  //      "bench" :: "all" :: "dpcpp-2021*-oclcpu-202012" :: "local-amd" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil
+
   //    run("list" :: Nil)
 //    run(
 //      "bench" :: "all" :: "dpcpp-2021*-oclcpu-202012" :: "local-amd" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil

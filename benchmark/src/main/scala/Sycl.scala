@@ -2,18 +2,30 @@ import EvenBetterFiles._
 import SC._
 import better.files.File
 
+import java.time.format.DateTimeFormatter
+import java.time.{LocalDate, ZoneOffset}
 import scala.collection.parallel.CollectionConverters._
 
 sealed trait Sycl {
+  def name: String
   def key: String
   def abbr: String
   def paths: Vector[(String, File)]
+  def ver: String
+  def released: LocalDate
 }
 object Sycl {
-  case class ComputeCpp(computepp: File, oclcpu: File, tbb: File, key: String, abbr: String)
-      extends Sycl {
-    def paths = Vector("compute++" -> computepp)
-
+  case class ComputeCpp(
+      computepp: File,
+      oclcpu: File,
+      tbb: File,
+      key: String,
+      abbr: String,
+      ver: String,
+      released: LocalDate
+  ) extends Sycl {
+    def name: String = "computecpp"
+    def paths        = Vector("compute++" -> computepp)
     def cpuEnvs: Vector[String] = Vector(
       prependFileEnvs(
         "LD_LIBRARY_PATH",
@@ -28,8 +40,17 @@ object Sycl {
     def sdk: String = computepp.!!
 
   }
-  case class DPCPP(dpcpp: File, oclcpu: File, tbb: File, key: String, abbr: String) extends Sycl {
-    def paths = Vector("dpcpp" -> dpcpp, "oclcpu" -> oclcpu, "tbb" -> tbb)
+  case class DPCPP(
+      dpcpp: File,
+      oclcpu: File,
+      tbb: File,
+      key: String,
+      abbr: String,
+      ver: String,
+      released: LocalDate
+  ) extends Sycl {
+    def name: String = "dpcpp"
+    def paths        = Vector("dpcpp" -> dpcpp, "oclcpu" -> oclcpu, "tbb" -> tbb)
     def cpuEnvs: Vector[String] = Vector(
       prependFileEnvs(
         "LD_LIBRARY_PATH",
@@ -45,8 +66,10 @@ object Sycl {
     def include: String    = (dpcpp / "include" / "sycl").!!
 
   }
-  case class hipSYCL(path: File, key: String, abbr: String) extends Sycl {
-    def paths = Vector("dir" -> path)
+  case class hipSYCL(path: File, key: String, abbr: String, ver: String, released: LocalDate)
+      extends Sycl {
+    def name: String = "hipsycl"
+    def paths        = Vector("dir" -> path)
   }
 
   def list(oclcpuDir: File, dpcppDir: File, computecppDir: File): Vector[Sycl] = {
@@ -77,7 +100,9 @@ object Sycl {
                 oclcpu,
                 tbb,
                 s"dpcpp-$yyyymmdd-oclcpu-$oclcpuyyyymm",
-                s"d${yyyymmdd}o$oclcpuyyyymm"
+                s"d${yyyymmdd}o$oclcpuyyyymm",
+                yyyymmdd,
+                LocalDate.parse(yyyymmdd, DateTimeFormatter.ofPattern("yyyyMMdd"))
               )
             }
           case _ => Vector()
@@ -94,7 +119,12 @@ object Sycl {
                 oclcpu,
                 tbb,
                 s"computecpp-$ver-oclcpu-$oclcpuyyyymm",
-                s"c${ver}o$oclcpuyyyymm"
+                s"c${ver}o$oclcpuyyyymm",
+                ver,
+                LocalDate.ofInstant(
+                  computepp.list(_.isRegularFile).map(_.lastModifiedTime).max,
+                  ZoneOffset.UTC
+                )
               )
             }
           case _ => Vector()

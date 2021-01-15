@@ -30,13 +30,29 @@ object Bude {
 
   }
 
+  val ErrorThresholdPct: Double = 1.0
+
   val Def = Project(
     name = "bude",
     abbr = "b",
     gitRepo = "https://github.com/UoB-HPC/bude-portability-benchmark.git" -> "master",
     timeout = 1 minute,
+    extractResult = out => {
+      out.linesIterator
+        .collect { case s"Largest difference was ${pct}%${_}" => pct.trim.toDoubleOption }
+        .flatten
+        .ensureOne("difference")
+        .flatMap {
+          case x if x > ErrorThresholdPct =>
+            Left(s"Error exceeded threshold, got $x, need < $ErrorThresholdPct")
+          case _ =>
+            out.linesIterator
+              .collect { case s"- Kernel time: ${ms} ms" => ms.trim }
+              .ensureOne("kernel time")
+        }
+    },
     run = {
-      case (wd, p, computecpp @ Sycl.ComputeCpp(_, oclcpu, _, _, _)) =>
+      case (wd, p, computecpp: Sycl.ComputeCpp) =>
         setup(
           wd,
           p,
@@ -46,13 +62,13 @@ object Bude {
             "NUM_TD_PER_THREAD" -> "2"
           ) ++ (p match {
             case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
-              Vector("OpenCL_LIBRARY" -> (oclcpu / "x64" / "libOpenCL.so").^)
+              Vector("OpenCL_LIBRARY" -> (computecpp.oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
-      case (wd, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
+      case (wd, p, dpcpp: Sycl.DPCPP) =>
         setup(
           wd,
           p,
@@ -70,7 +86,7 @@ object Bude {
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
 
-      case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
+      case (wd, p, hipsycl: Sycl.hipSYCL) => ???
     }
   )
 }

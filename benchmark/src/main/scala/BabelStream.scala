@@ -49,8 +49,21 @@ object BabelStream {
     abbr = "s",
     gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
     timeout = 5 minute,
-    {
-      case (repo, p, computecpp @ Sycl.ComputeCpp(_, _, _, _, _)) =>
+    extractResult = out => {
+      if (out.contains("Validation failed on")) Left("Validation failed")
+      else
+        out.linesIterator
+          .flatMap { line =>
+            line.split("\\s+").toList match {
+              case "Dot" :: peakMBytesPerSec :: minSec :: maxSec :: avgSec :: Nil =>
+                Some(peakMBytesPerSec)
+              case xs => None
+            }
+          }
+          .ensureOne("Dot line")
+    },
+    run = {
+      case (repo, p, computecpp: Sycl.ComputeCpp) =>
         setup(
           repo,
           p,
@@ -63,7 +76,7 @@ object BabelStream {
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
-      case (repo, p, dpcpp @ Sycl.DPCPP(_, _, _, _, _)) =>
+      case (repo, p, dpcpp: Sycl.DPCPP) =>
         setup(
           repo,
           p,
@@ -80,7 +93,7 @@ object BabelStream {
           ),
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
-      case (wd, p, Sycl.hipSYCL(path, _, _)) => ???
+      case (wd, p, hipsycl: Sycl.hipSYCL) => ???
     }
   )
 }
