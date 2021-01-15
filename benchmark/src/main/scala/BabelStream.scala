@@ -75,7 +75,13 @@ object BabelStream {
               s"-DCL_TARGET_OPENCL_VERSION=220",
               "-D_GLIBCXX_USE_CXX11_ABI=0",
               s"-I${ctx.clHeaderInclude.^}",
-              s"-L${(computecpp.oclcpu / "x64").^}"
+              s"-L${(computecpp.oclcpu / "x64").^}",
+              p match {
+                case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS |
+                    Platform.IrisPro580UoBZoo =>
+                  s"--gcc-toolchain=$EvalGCCPathExpr"
+                case _ => ""
+              }
             ).mkString(" ")
           ),
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
