@@ -43,7 +43,7 @@ object Main {
     val RunSpec(prelude, build, run) = project.run(repoRoot, platform, sycl)
 
     val jobFile = repoRoot / s"run.job"
-    val logFile = (repoRoot / s"prepare.log").createFileIfNotExists().clear()
+    val logFile = repoRoot / s"prepare.log"
     val (jobScript, submit) = platform.submit(
       Platform.JobSpec(
         name = s"${project.abbr}-${platform.abbr}-${sycl.abbr}",
@@ -90,6 +90,7 @@ object Main {
 
     def spawn(log: File)(xs: String*) = {
       import scala.sys.process._
+      logFile.createFileIfNotExists(createParents = true).clear()
       println(s"`${xs.mkString(" ")}` &> $logFile")
       val logger = ProcessLogger(log.toJava)
       val code   = xs ! logger
