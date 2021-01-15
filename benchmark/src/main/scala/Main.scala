@@ -43,7 +43,7 @@ object Main {
     val RunSpec(prelude, build, run) = project.run(repoRoot, platform, sycl)
 
     val jobFile = repoRoot / s"_run.job"
-    val logFile = workingDir / s"prepare.log"
+    val logFile = workingDir / "logs" / s"$id.log"
     val (jobScript, submit) = platform.submit(
       Platform.JobSpec(
         name = s"${project.abbr}-${platform.abbr}-${sycl.abbr}",
