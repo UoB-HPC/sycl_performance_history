@@ -20,7 +20,6 @@ object BabelStream {
       case Platform.IrisPro580UoBZoo =>
         platform.setupModules ++
           Vector(
-            "module load khronos/opencl/headers",
             "module load khronos/opencl/icd-loader"
           )
       case _ => platform.setupModules
@@ -96,11 +95,17 @@ object BabelStream {
             "TARGET"             -> "CPU",
             "SYCL_DPCPP_CXX"     -> dpcpp.`clang++`,
             "SYCL_DPCPP_INCLUDE" -> s"-I${dpcpp.include}",
-            "EXTRA_FLAGS" -> s"-DCL_TARGET_OPENCL_VERSION=220 -fsycl -march=${p.march} ${p match {
-              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
-                s"--gcc-toolchain=$EvalGCCPathExpr"
-              case _ => ""
-            }}"
+            "EXTRA_FLAGS" -> Vector(
+              s"-DCL_TARGET_OPENCL_VERSION=220",
+              "-fsycl",
+              s"-march=${p.march}",
+              s"-I${ctx.clHeaderInclude.^}",
+              s"${p match {
+                case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
+                  s"--gcc-toolchain=$EvalGCCPathExpr"
+                case _ => ""
+              }}"
+            ).mkString(" ")
           ),
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
