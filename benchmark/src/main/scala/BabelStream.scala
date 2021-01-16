@@ -99,7 +99,7 @@ object BabelStream {
               s"-DCL_TARGET_OPENCL_VERSION=220",
               "-fsycl",
               s"-march=${p.march}",
-              s"-I${ctx.clHeaderInclude.^}",
+              s"-I${(dpcpp.dpcpp / "include" / "sycl" / "CL").^}",
               s"${p match {
                 case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
                   s"--gcc-toolchain=$EvalGCCPathExpr"
