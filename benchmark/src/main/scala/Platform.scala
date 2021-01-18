@@ -131,6 +131,22 @@ object Platform {
         submit = genericPBS("workq", identity, "-l select=1:ngpus=1:gputype=irispro580")
       )
 
+  object IrisXeMAXDevCloud
+      extends Platform(
+        name = "irisxemax-devcloud",
+        abbr = "ixm",
+        march = "cascadelake", //Xe MAX node is i9-10920X, cascadelake
+        deviceSubstring = "Intel(R) Graphics",
+        hasQueue = true,
+        isCPU = false,
+        setupModules = Vector(),
+        streamArraySize = None,
+        // queues:
+        // - extended  168:00:0
+        // - batch     24:00:00
+        submit = genericPBS("batch", identity, "-l nodes=1:iris_xe_max:ppn=2")
+      )
+
   sealed abstract class Local(
       name: String,
       march: String,

@@ -80,7 +80,7 @@ object CloverLeaf {
             "CMAKE_C_COMPILER"   -> "gcc",
             "CMAKE_CXX_COMPILER" -> "g++"
           ) ++ (p match {
-            case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo =>
+            case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo | IrisXeMAXDevCloud =>
               Vector("OpenCL_LIBRARY" -> (computecpp.oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),

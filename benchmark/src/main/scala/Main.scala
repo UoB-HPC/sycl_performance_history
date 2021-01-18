@@ -153,6 +153,7 @@ object Main {
     Platform.RomeIsambardMACS,
     Platform.CxlIsambardMACS,
     Platform.IrisPro580UoBZoo,
+    Platform.IrisXeMAXDevCloud,
     Platform.LocalAMDCPU,
     Platform.LocalIntelCPU,
     Platform.LocalIntelGPU
