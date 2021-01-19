@@ -24,9 +24,12 @@ object Main {
 
     val id = s"${project.name}-${platform.name}-${sycl.key}"
 
-    val buildsDir  = workingDir / "builds"
-    val resultsDir = (workingDir / "results").createDirectoryIfNotExists()
+    val buildsDir      = workingDir / "builds"
+    val platformBinDir = (workingDir / s"bin-${platform.name}").createDirectoryIfNotExists()
+    val resultsDir     = (workingDir / "results").createDirectoryIfNotExists()
     resultsDir.list.filter(_.name.startsWith(id)).foreach(_.delete())
+
+    platform.prime.foreach(_(platformBinDir, platform))
 
     val repoRoot = buildsDir / id
 
@@ -42,7 +45,15 @@ object Main {
     )
 
     val RunSpec(prelude, build, run) =
-      project.run(Context(wd = repoRoot, clHeaderInclude = clIncludeDir), platform, sycl)
+      project.run(
+        Context(
+          wd = repoRoot,
+          clHeaderIncludeDir = clIncludeDir,
+          platformBinDir = platformBinDir
+        ),
+        platform,
+        sycl
+      )
 
     val jobFile = repoRoot / s"_run.job"
     val logFile = workingDir / "logs" / s"$id.log"
@@ -126,7 +137,7 @@ object Main {
 
   case class RunSpec(prelude: Vector[String], build: Vector[String], run: Vector[String])
 
-  case class Context(wd: File, clHeaderInclude: File)
+  case class Context(wd: File, clHeaderIncludeDir: File, platformBinDir: File)
 
   case class Project(
       name: String,

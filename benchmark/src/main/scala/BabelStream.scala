@@ -1,6 +1,5 @@
 import Main._
 import SC._
-import better.files.File
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
@@ -8,32 +7,29 @@ import scala.language.postfixOps
 object BabelStream {
 
   private def setup(
-      repo: File,
+      ctx: Context,
       platform: Platform,
       makeOpts: Vector[(String, String)],
       exports: String*
   ) = {
 
-    val exe = (repo / "sycl-stream").^?
+    val exe = (ctx.wd / "sycl-stream").^?
 
     val modules = platform match {
       case Platform.IrisPro580UoBZoo =>
-        platform.setupModules ++
-          Vector(
-            "module load khronos/opencl/icd-loader"
-          )
-      case _ => platform.setupModules
+        platform.setup.andThen(_ ++ Vector("module load khronos/opencl/icd-loader"))
+      case _ => platform.setup
     }
 
     RunSpec(
-      prelude = modules ++ exports.map(e => s"export $e"),
-      build = s"cd ${repo.^?} " +:
+      prelude = modules(ctx.platformBinDir) ++ exports.map(e => s"export $e"),
+      build = s"cd ${ctx.wd.^?} " +:
         make(
-          makefile = repo / "SYCL.make",
+          makefile = ctx.wd / "SYCL.make",
           makeOpts: _*
         ),
       run = Vector(
-        s"cd ${repo.^?}",
+        s"cd ${ctx.wd.^?}",
         s"$exe --list",
         s"""export DEVICE=$$($exe --list | grep -a "${platform.deviceSubstring}" | cut -d ':' -f1 | head -n 1)""",
         s"""echo "Using device $$DEVICE which matches substring ${platform.deviceSubstring}" """,
@@ -64,7 +60,7 @@ object BabelStream {
     run = {
       case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          ctx.wd,
+          ctx,
           p,
           Vector(
             "COMPILER"     -> "COMPUTECPP",
@@ -73,7 +69,7 @@ object BabelStream {
             "EXTRA_FLAGS" -> Vector(
               s"-DCL_TARGET_OPENCL_VERSION=220",
               "-D_GLIBCXX_USE_CXX11_ABI=0",
-              s"-I${ctx.clHeaderInclude.^}",
+              s"-I${ctx.clHeaderIncludeDir.^}",
               s"-L${(computecpp.oclcpu / "x64").^}",
               p match {
                 case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS |
@@ -88,7 +84,7 @@ object BabelStream {
 
       case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          ctx.wd,
+          ctx,
           p,
           Vector(
             "COMPILER"           -> "DPCPP",

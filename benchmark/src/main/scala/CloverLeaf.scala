@@ -1,14 +1,13 @@
 import Main._
 import Platform._
 import SC._
-import better.files.File
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 object CloverLeaf {
 
   private def setup(
-      repo: File,
+      ctx: Context,
       platform: Platform,
       cmakeOpts: Vector[(String, String)],
       exports: String*
@@ -29,21 +28,21 @@ object CloverLeaf {
     }
 
     RunSpec(
-      platform.setupModules ++ (exports ++ mpiEnvs).map(e => s"export $e"),
-      s"cd ${repo.^?}" +: cmake(
+      platform.setup(ctx.platformBinDir) ++ (exports ++ mpiEnvs).map(e => s"export $e"),
+      s"cd ${ctx.wd.^?}" +: cmake(
         target = "cloverleaf",
-        build = repo / "build",
+        build = ctx.wd / "build",
         cmakeOpts ++ Vector(
           "MPI_AS_LIBRARY"    -> "ON",
           "MPI_C_LIB_DIR"     -> (mpiPath / "lib").!!,
           "MPI_C_INCLUDE_DIR" -> (mpiPath / "include").!!,
           "MPI_C_LIB"         -> (mpiPath / "lib" / "release" / "libmpi.so").!!
         ): _*
-      ) :+ s"cp ${(repo / "build" / "cloverleaf").^?} ${repo.^?}",
+      ) :+ s"cp ${(ctx.wd / "build" / "cloverleaf").^?} ${ctx.wd.^?}",
       Vector(
-        s"cd ${repo.^?}",
-        s"${(repo / "cloverleaf").^?} " +
-          s"--file ${(repo / "InputDecks" / "clover_bm16.in").^?} " +
+        s"cd ${ctx.wd.^?}",
+        s"${(ctx.wd / "cloverleaf").^?} " +
+          s"--file ${(ctx.wd / "InputDecks" / "clover_bm16.in").^?} " +
           s"""--device "${platform.deviceSubstring}""""
       )
     )
@@ -72,7 +71,7 @@ object CloverLeaf {
     run = {
       case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          ctx.wd,
+          ctx,
           p,
           Vector(
             "SYCL_RUNTIME"       -> "COMPUTECPP",
@@ -89,7 +88,7 @@ object CloverLeaf {
 
       case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          ctx.wd,
+          ctx,
           p,
           Vector(
             "SYCL_RUNTIME"  -> "DPCPP",

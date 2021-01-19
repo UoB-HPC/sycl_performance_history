@@ -1,5 +1,5 @@
 import Platform.JobSpec
-import SC.RichFile
+import SC.{RichFile, prependFileEnvs}
 import better.files.File
 
 import java.nio.file.Paths
@@ -12,9 +12,10 @@ sealed abstract class Platform(
     val deviceSubstring: String,
     val hasQueue: Boolean,
     val isCPU: Boolean,
-    val setupModules: Vector[String],
+    val setup: File => Vector[String],
     val streamArraySize: Option[Long],
-    val submit: JobSpec => (String, File => Vector[String])
+    val submit: JobSpec => (String, File => Vector[String]),
+    val prime: Option[(File, Platform) => Unit] = None
 )
 object Platform {
 
@@ -88,7 +89,7 @@ object Platform {
         deviceSubstring = "AMD",
         hasQueue = true,
         isCPU = true,
-        setupModules = IsambardMACS.setupModules,
+        setup = _ => IsambardMACS.setupModules,
         streamArraySize = Some(math.pow(2, 29).toLong),
         submit = lustreNCpu("romeq", 128)
       )
@@ -100,7 +101,7 @@ object Platform {
         deviceSubstring = "Xeon",
         hasQueue = true,
         isCPU = true,
-        setupModules = IsambardMACS.setupModules,
+        setup = _ => IsambardMACS.setupModules,
         streamArraySize = Some(math.pow(2, 29).toLong),
         submit = lustreNCpu("clxq", 40)
       )
@@ -124,28 +125,48 @@ object Platform {
         deviceSubstring = "Intel(R) Graphics",
         hasQueue = true,
         isCPU = false,
-        setupModules = UoBZoo.setupModules ++ Vector(
-          "module load intel/neo/20.49.18626"
-        ),
+        setup = _ => UoBZoo.setupModules ++ Vector("module load intel/neo/20.49.18626"),
         streamArraySize = None,
         submit = genericPBS("workq", identity, "-l select=1:ngpus=1:gputype=irispro580")
       )
 
-  object IrisXeMAXDevCloud
-      extends Platform(
-        name = "irisxemax-devcloud",
-        abbr = "ixm",
-        march = "cascadelake", //Xe MAX node is i9-10920X, cascadelake
-        deviceSubstring = "Intel(R) Graphics",
-        hasQueue = true,
-        isCPU = false,
-        setupModules = Vector(),
-        streamArraySize = None,
-        // queues:
-        // - extended  168:00:0
-        // - batch     24:00:00
-        submit = genericPBS("batch", identity, "-l nodes=1:iris_xe_max:ppn=2")
-      )
+  object IrisXeMAXDevCloud extends {} with Platform(
+    name = "irisxemax-devcloud",
+    abbr = "ixm",
+    march = "cascadelake", //Xe MAX node is i9-10920X, cascadelake
+    deviceSubstring = "Intel(R) Graphics",
+    hasQueue = true,
+    isCPU = false,
+    setup = wd => {
+      val libs = wd / "lib" / "x86_64-linux-gnu"
+      Vector(s"export ${prependFileEnvs("LD_LIBRARY_PATH", libs)}")
+    },
+    streamArraySize = None,
+    // queues:
+    // - extended  168:00:0
+    // - batch     24:00:00
+    submit = genericPBS("batch", identity, "-l nodes=1:iris_xe_max:ppn=2"),
+    prime = Some({ case (wd, _) =>
+      val libtinfo = wd / "lib" / "x86_64-linux-gnu" / "libtinfo.so.5"
+      if (libtinfo.notExists) {
+        // devcloud is Ubuntu 20.04.1 LTS
+        // dpcpp needs this
+        val deb = wd / "libtinfo5.deb"
+        val out = wd.createFileIfNotExists()
+        EvenBetterFiles.wget(
+          "http://mirrors.edge.kernel.org/ubuntu/pool/universe/n/ncurses/libtinfo5_6.2-0ubuntu2_amd64.deb",
+          deb
+        )
+        println(s"Preparing to install ${deb.^?} to ${wd.^?}")
+        import scala.sys.process._
+        val dpkgExtractCode = Seq("dpkg-deb", "-xv", deb.!!, out.!!).!
+        if (dpkgExtractCode != 0) {
+          throw new Exception(s"$deb failed to install, got code $dpkgExtractCode")
+        }
+      }
+
+    })
+  )
 
   sealed abstract class Local(
       name: String,
@@ -161,7 +182,7 @@ object Platform {
         deviceSubstring = deviceSubstring,
         hasQueue = false,
         isCPU = isCPU,
-        setupModules = setupModules,
+        setup = _ => setupModules,
         streamArraySize = streamArraySize,
         submit = spec => {
           s"""|#!/bin/bash

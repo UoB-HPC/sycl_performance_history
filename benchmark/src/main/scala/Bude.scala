@@ -1,17 +1,21 @@
 import Main._
 import SC._
-import better.files.File
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 object Bude {
 
-  def setup(wd: File, platform: Platform, cmakeOpts: Vector[(String, String)], exports: String*) = {
-    val repo = wd / "sycl"
+  def setup(
+      ctx: Context,
+      platform: Platform,
+      cmakeOpts: Vector[(String, String)],
+      exports: String*
+  ) = {
+    val repo = ctx.wd / "sycl"
 
     RunSpec(
-      prelude = platform.setupModules ++ exports.map(e => s"export $e"),
+      prelude = platform.setup(ctx.platformBinDir) ++ exports.map(e => s"export $e"),
       build = s"cd ${repo.^?} " +:
         cmake(
           target = "bude",
@@ -20,9 +24,9 @@ object Bude {
         ) :+
         s"cp ${(repo / "build" / "bude").^?} ${repo.^?}",
       run = Vector(
-        s"cd ${wd.^?}",
+        s"cd ${ctx.wd.^?}",
         s"${(repo / "bude").^?} -n 65536 -i 8 " +
-          s"--deck ${(wd / "data" / "bm1").^?} " +
+          s"--deck ${(ctx.wd / "data" / "bm1").^?} " +
           s"--wgsize 0 " +
           s"""--device "${platform.deviceSubstring}""""
       )
@@ -54,7 +58,7 @@ object Bude {
     run = {
       case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          ctx.wd,
+          ctx,
           p,
           Vector(
             "SYCL_RUNTIME"      -> "COMPUTECPP",
@@ -70,7 +74,7 @@ object Bude {
 
       case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          ctx.wd,
+          ctx,
           p,
           Vector(
             "SYCL_RUNTIME"  -> "DPCPP",
