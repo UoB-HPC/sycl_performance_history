@@ -77,7 +77,8 @@ object CloverLeaf {
             "SYCL_RUNTIME"       -> "COMPUTECPP",
             "ComputeCpp_DIR"     -> computecpp.sdk,
             "CMAKE_C_COMPILER"   -> "gcc",
-            "CMAKE_CXX_COMPILER" -> "g++"
+            "CMAKE_CXX_COMPILER" -> "g++",
+            "CXX_EXTRA_FLAGS"    -> s"-march=${p.march}"
           ) ++ (p match {
             case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo |
                 IrisXeMAXDevCloud | UHDP630DevCloud =>

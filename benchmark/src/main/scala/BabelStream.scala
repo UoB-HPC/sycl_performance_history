@@ -68,6 +68,7 @@ object BabelStream {
             "SYCL_SDK_DIR" -> computecpp.sdk,
             "EXTRA_FLAGS" -> Vector(
               s"-DCL_TARGET_OPENCL_VERSION=220",
+              s"-march=${p.march}",
               "-D_GLIBCXX_USE_CXX11_ABI=0",
               s"-I${ctx.clHeaderIncludeDir.^}",
               s"-L${(computecpp.oclcpu / "x64").^}",

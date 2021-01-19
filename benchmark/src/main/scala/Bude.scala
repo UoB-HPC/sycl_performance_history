@@ -64,10 +64,11 @@ object Bude {
           Vector(
             "SYCL_RUNTIME"      -> "COMPUTECPP",
             "ComputeCpp_DIR"    -> computecpp.sdk,
-            "NUM_TD_PER_THREAD" -> "2"
+            "NUM_TD_PER_THREAD" -> "2",
+            "CXX_EXTRA_FLAGS"   -> s"-march=${p.march}"
           ) ++ (p match {
-            case RomeIsambardMACS | CxlIsambardMACS |
-                IrisPro580UoBZoo | IrisXeMAXDevCloud | UHDP630DevCloud =>
+            case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo |
+                IrisXeMAXDevCloud | UHDP630DevCloud =>
               Vector("OpenCL_LIBRARY" -> (computecpp.oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
