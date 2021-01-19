@@ -165,6 +165,7 @@ object Main {
     Platform.CxlIsambardMACS,
     Platform.IrisPro580UoBZoo,
     Platform.IrisXeMAXDevCloud,
+    Platform.UHDP630DevCloud,
     Platform.LocalAMDCPU,
     Platform.LocalIntelCPU,
     Platform.LocalIntelGPU

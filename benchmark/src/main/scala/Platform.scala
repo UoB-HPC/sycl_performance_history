@@ -130,27 +130,15 @@ object Platform {
         submit = genericPBS("workq", identity, "-l select=1:ngpus=1:gputype=irispro580")
       )
 
-  object IrisXeMAXDevCloud extends {} with Platform(
-    name = "irisxemax-devcloud",
-    abbr = "ixm",
-    march = "cascadelake", //Xe MAX node is i9-10920X, cascadelake
-    deviceSubstring = "Intel(R) Graphics",
-    hasQueue = true,
-    isCPU = false,
-    setup = wd => {
-      val libs = wd / "lib" / "x86_64-linux-gnu"
-      Vector(s"export ${prependFileEnvs("LD_LIBRARY_PATH", libs)}")
-    },
-    streamArraySize = None,
+  object DevCloud {
+    // devcloud LSB is Ubuntu 20.04.1 LTS
     // queues:
     // - extended  168:00:0
     // - batch     24:00:00
-    submit = genericPBS("batch", identity, "-l nodes=1:iris_xe_max:ppn=2"),
-    prime = Some({ case (wd, _) =>
+    def prime(wd: File) = {
       val libtinfo = wd / "lib" / "x86_64-linux-gnu" / "libtinfo.so.5"
       if (libtinfo.notExists) {
-        // devcloud is Ubuntu 20.04.1 LTS
-        // dpcpp needs this
+        // dpcpp needs this legacy ncurses thing
         val deb = wd / "libtinfo5.deb"
         val out = wd.createFileIfNotExists()
         EvenBetterFiles.wget(
@@ -164,8 +152,37 @@ object Platform {
           throw new Exception(s"$deb failed to install, got code $dpkgExtractCode")
         }
       }
+    }
+    def setup(wd: File) = {
+      val libs = wd / "lib" / "x86_64-linux-gnu"
+      Vector(s"export ${prependFileEnvs("LD_LIBRARY_PATH", libs)}")
+    }
+  }
 
-    })
+  object UHDP630DevCloud extends {} with Platform(
+    name = "uhdp630-devcloud",
+    abbr = "u630",
+    march = "skylake", //P630 node is Xeon E-2176G, skylake
+    deviceSubstring = "Intel(R) Graphics",
+    hasQueue = true,
+    isCPU = false,
+    setup = DevCloud.setup(_),
+    streamArraySize = None,
+    submit = genericPBS("batch", identity, "-l nodes=1:gen9_max:ppn=2"),
+    prime = Some({ case (wd, _) => DevCloud.prime(wd) })
+  )
+
+  object IrisXeMAXDevCloud extends {} with Platform(
+    name = "irisxemax-devcloud",
+    abbr = "ixm",
+    march = "cascadelake", //Xe MAX node is i9-10920X, cascadelake
+    deviceSubstring = "Intel(R) Graphics",
+    hasQueue = true,
+    isCPU = false,
+    setup = DevCloud.setup(_),
+    streamArraySize = None,
+    submit = genericPBS("batch", identity, "-l nodes=1:iris_xe_max:ppn=2"),
+    prime = Some({ case (wd, _) => DevCloud.prime(wd) })
   )
 
   sealed abstract class Local(

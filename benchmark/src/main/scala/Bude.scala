@@ -1,4 +1,5 @@
 import Main._
+import Platform._
 import SC._
 
 import scala.concurrent.duration.DurationInt
@@ -65,7 +66,8 @@ object Bude {
             "ComputeCpp_DIR"    -> computecpp.sdk,
             "NUM_TD_PER_THREAD" -> "2"
           ) ++ (p match {
-            case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
+            case RomeIsambardMACS | CxlIsambardMACS |
+                IrisPro580UoBZoo | IrisXeMAXDevCloud | UHDP630DevCloud =>
               Vector("OpenCL_LIBRARY" -> (computecpp.oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
@@ -81,7 +83,7 @@ object Bude {
             "DPCPP_BIN"     -> dpcpp.`clang++`,
             "DPCPP_INCLUDE" -> dpcpp.include,
             "CXX_EXTRA_FLAGS" -> s"-fsycl -march=${p.march} ${p match {
-              case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
+              case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo =>
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
             }}",
