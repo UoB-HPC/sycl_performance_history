@@ -68,6 +68,7 @@ object BabelStream {
             "SYCL_SDK_DIR" -> computecpp.sdk,
             "EXTRA_FLAGS" -> Vector(
               s"-DCL_TARGET_OPENCL_VERSION=220",
+              "-DNDEBUG", // eliminate assertion, see https://en.cppreference.com/w/cpp/error/assert
               s"-march=${p.march}",
               "-D_GLIBCXX_USE_CXX11_ABI=0",
               s"-I${ctx.clHeaderIncludeDir.^}",
@@ -94,6 +95,7 @@ object BabelStream {
             "SYCL_DPCPP_INCLUDE" -> s"-I${dpcpp.include}",
             "EXTRA_FLAGS" -> Vector(
               s"-DCL_TARGET_OPENCL_VERSION=220",
+              "-DNDEBUG", // eliminate assertion, see https://en.cppreference.com/w/cpp/error/assert
               "-fsycl",
               s"-march=${p.march}",
               s"-I${(dpcpp.dpcpp / "include" / "sycl" / "CL").^}",
