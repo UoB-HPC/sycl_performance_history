@@ -135,6 +135,10 @@ object Platform {
     // queues:
     // - extended  168:00:0
     // - batch     24:00:00
+
+    val oneapiMPIPath: File       = File("/glob/development-tools/oneapi/oneapi/mpi/2021.1.1")
+    val oneapiLibFabricPath: File = oneapiMPIPath / "libfabric"
+
     def prime(wd: File) = {
       val libtinfo = wd / "lib" / "x86_64-linux-gnu" / "libtinfo.so.5"
       if (libtinfo.notExists) {
@@ -159,31 +163,33 @@ object Platform {
     }
   }
 
-  object UHDP630DevCloud extends {} with Platform(
-    name = "uhdp630-devcloud",
-    abbr = "u630",
-    march = "skylake", //P630 node is Xeon E-2176G, skylake
-    deviceSubstring = "Intel(R) Graphics",
-    hasQueue = true,
-    isCPU = false,
-    setup = DevCloud.setup(_),
-    streamArraySize = None,
-    submit = genericPBS("batch", identity, "-l nodes=1:gen9:ppn=2"),
-    prime = Some({ case (wd, _) => DevCloud.prime(wd) })
-  )
+  object UHDP630DevCloud
+      extends Platform(
+        name = "uhdp630-devcloud",
+        abbr = "u630",
+        march = "skylake", //P630 node is Xeon E-2176G, skylake
+        deviceSubstring = "Intel(R) Graphics",
+        hasQueue = true,
+        isCPU = false,
+        setup = DevCloud.setup(_),
+        streamArraySize = None,
+        submit = genericPBS("batch", identity, "-l nodes=1:gen9:ppn=2"),
+        prime = Some({ case (wd, _) => DevCloud.prime(wd) })
+      )
 
-  object IrisXeMAXDevCloud extends {} with Platform(
-    name = "irisxemax-devcloud",
-    abbr = "ixm",
-    march = "cascadelake", //Xe MAX node is i9-10920X, cascadelake
-    deviceSubstring = "Intel(R) Graphics",
-    hasQueue = true,
-    isCPU = false,
-    setup = DevCloud.setup(_),
-    streamArraySize = None,
-    submit = genericPBS("batch", identity, "-l nodes=1:iris_xe_max:ppn=2"),
-    prime = Some({ case (wd, _) => DevCloud.prime(wd) })
-  )
+  object IrisXeMAXDevCloud
+      extends Platform(
+        name = "irisxemax-devcloud",
+        abbr = "ixm",
+        march = "cascadelake", //Xe MAX node is i9-10920X, cascadelake
+        deviceSubstring = "Intel(R) Graphics",
+        hasQueue = true,
+        isCPU = false,
+        setup = DevCloud.setup(_),
+        streamArraySize = None,
+        submit = genericPBS("batch", identity, "-l nodes=1:iris_xe_max:ppn=2"),
+        prime = Some({ case (wd, _) => DevCloud.prime(wd) })
+      )
 
   sealed abstract class Local(
       name: String,

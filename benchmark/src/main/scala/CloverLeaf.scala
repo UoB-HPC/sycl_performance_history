@@ -24,6 +24,11 @@ object CloverLeaf {
           prependFileEnvs("LD_LIBRARY_PATH", UoBZoo.oneapiLibFabricPath / "lib"),
           prependFileEnvs("FI_PROVIDER_PATH", UoBZoo.oneapiLibFabricPath / "lib" / "prov")
         ) -> UoBZoo.oneapiMPIPath
+      case IrisXeMAXDevCloud | UHDP630DevCloud =>
+        Vector(
+          prependFileEnvs("LD_LIBRARY_PATH", DevCloud.oneapiLibFabricPath / "lib"),
+          prependFileEnvs("FI_PROVIDER_PATH", DevCloud.oneapiLibFabricPath / "lib" / "prov")
+        ) -> DevCloud.oneapiMPIPath
       case l: Local => Vector() -> l.oneapiMPIPath
     }
 

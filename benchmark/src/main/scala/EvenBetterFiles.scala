@@ -58,7 +58,7 @@ object EvenBetterFiles {
           touch()
         } else throw new IOException(s"Can't handle entry ${entry.getName}")
         Some(() -> taris.getNextTarEntry)
-    }).get
+    }).get()
     ()
   }
 

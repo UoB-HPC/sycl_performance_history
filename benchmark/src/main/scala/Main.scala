@@ -46,13 +46,15 @@ object Main {
 
     val RunSpec(prelude, build, run) =
       project.run(
-        Context(
-          wd = repoRoot,
-          clHeaderIncludeDir = clIncludeDir,
-          platformBinDir = platformBinDir
-        ),
-        platform,
-        sycl
+        (
+          Context(
+            wd = repoRoot,
+            clHeaderIncludeDir = clIncludeDir,
+            platformBinDir = platformBinDir
+          ),
+          platform,
+          sycl
+        )
       )
 
     val jobFile = repoRoot / s"_run.job"
@@ -312,13 +314,6 @@ object Main {
         help()
     }
   }
-
-  def processResults(
-      project: Seq[Project],
-      platform: Seq[Platform],
-      sycls: Seq[Sycl],
-      workingDir: File
-  ) = {}
 
   def main(args: Array[String]): Unit =
     run(args.toList)
