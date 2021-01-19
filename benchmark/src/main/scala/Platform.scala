@@ -168,7 +168,7 @@ object Platform {
     isCPU = false,
     setup = DevCloud.setup(_),
     streamArraySize = None,
-    submit = genericPBS("batch", identity, "-l nodes=1:gen9_max:ppn=2"),
+    submit = genericPBS("batch", identity, "-l nodes=1:gen9:ppn=2"),
     prime = Some({ case (wd, _) => DevCloud.prime(wd) })
   )
 
