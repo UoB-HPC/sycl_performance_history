@@ -58,7 +58,7 @@ object CloverLeaf {
     name = "cloverleaf",
     abbr = "c",
     gitRepo = "https://github.com/UoB-HPC/cloverleaf_sycl.git" -> "sycl_history",
-    timeout = 4000 seconds,
+    timeout = 9000 seconds, // 3000 steps, 3 seconds per step max
     extractResult = out => {
       val xs = out.linesIterator.map(_.trim).toVector
       xs.slice(
