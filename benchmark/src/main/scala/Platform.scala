@@ -52,7 +52,7 @@ object Platform {
     }
   }
 
-  def lustreNCpu(queue: String, cpus: Int): JobSpec => (String, File => Vector[String]) =
+  def lustreTemplate(queue: String, select: String): JobSpec => (String, File => Vector[String]) =
     genericPBS(
       queue,
       { f =>
@@ -64,7 +64,7 @@ object Platform {
           File(g)
         } else f
       },
-      s"-l select=1:ncpus=$cpus",
+      s"-l select=$select",
       "-l place=excl"
     )
 
@@ -91,7 +91,7 @@ object Platform {
         isCPU = true,
         setup = _ => IsambardMACS.setupModules,
         streamArraySize = Some(math.pow(2, 29).toLong),
-        submit = lustreNCpu("romeq", 128)
+        submit = lustreTemplate("romeq", "1:ncpus=128")
       )
   case object CxlIsambardMACS
       extends Platform(
@@ -103,21 +103,21 @@ object Platform {
         isCPU = true,
         setup = _ => IsambardMACS.setupModules,
         streamArraySize = Some(math.pow(2, 29).toLong),
-        submit = lustreNCpu("clxq", 40)
+        submit = lustreTemplate("clxq", "1:ncpus=40")
       )
 
-    case object V100IsambardMACS // sm_70
-        extends Platform(
-            name = "v100-isambard",
-            abbr = "v100",
-            march = "skylake-avx512",
-            deviceSubstring = "OpenMP",
-            hasQueue = true,
-            isCPU = false,
-            setup = _ => IsambardMACS.setupModules,
-            streamArraySize = Some(math.pow(2, 29).toLong),
-            submit = lustreNCpu("clxq", 40)
-        )
+  case object V100IsambardMACS // sm_70
+      extends Platform(
+        name = "v100-isambard",
+        abbr = "v100",
+        march = "skylake-avx512",
+        deviceSubstring = "OpenMP",
+        hasQueue = true,
+        isCPU = false,
+        setup = _ => IsambardMACS.setupModules,
+        streamArraySize = Some(math.pow(2, 29).toLong),
+        submit = lustreTemplate("voltaq", "1")
+      )
 
   case object UoBZoo {
     val oneapiMPIPath: File =
