@@ -118,7 +118,18 @@ object Bude {
               case _ => ""
             }}",
             "NUM_TD_PER_THREAD" -> "2"
-          ),
+          ) ++ (if (p.isCPU)
+                  Vector(
+                    "HIPSYCL_PLATFORM" -> "cpu"
+                  )
+                else
+                  Vector(
+                    "HIPSYCL_PLATFORM" -> "cuda",
+                    "HIPSYCL_GPU_ARCH" -> (p match {
+                      case V100IsambardMACS => "sm_70"
+                      case bad              => throw new Exception(s"Unsupported platform for this config: $bad")
+                    })
+                  )),
           extraModules = Vector(
             "module load llvm/10.0",
             s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0"
