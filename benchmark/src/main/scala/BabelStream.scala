@@ -127,7 +127,10 @@ object BabelStream {
               }}"
             ).mkString(" ")
           ),
-          extraModules = Vector(s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0")
+          extraModules = Vector(
+            "module load llvm/10.0",
+            s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0"
+          )
         )
     }
   )
