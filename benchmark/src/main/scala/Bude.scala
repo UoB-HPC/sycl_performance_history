@@ -121,7 +121,7 @@ object Bude {
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
             }}",
-            "NUM_TD_PER_THREAD" -> "16"
+            "NUM_TD_PER_THREAD" -> "2"
           ) ++ (if (p.isCPU)
                   Vector(
                     "HIPSYCL_PLATFORM" -> "cpu"
