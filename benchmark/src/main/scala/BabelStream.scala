@@ -1,4 +1,5 @@
 import Main._
+import Platform._
 import SC._
 
 import scala.concurrent.duration.DurationInt
@@ -10,19 +11,20 @@ object BabelStream {
       ctx: Context,
       platform: Platform,
       makeOpts: Vector[(String, String)],
+      extraModules: Vector[String],
       exports: String*
   ) = {
 
     val exe = (ctx.wd / "sycl-stream").^?
 
     val modules = platform match {
-      case Platform.IrisPro580UoBZoo =>
+      case IrisPro580UoBZoo =>
         platform.setup.andThen(_ ++ Vector("module load khronos/opencl/icd-loader"))
       case _ => platform.setup
     }
 
     RunSpec(
-      prelude = modules(ctx.platformBinDir) ++ exports.map(e => s"export $e"),
+      prelude = modules(ctx.platformBinDir) ++ extraModules ++ exports.map(e => s"export $e"),
       build = s"cd ${ctx.wd.^?} " +:
         make(
           makefile = ctx.wd / "SYCL.make",
@@ -74,13 +76,13 @@ object BabelStream {
               s"-I${ctx.clHeaderIncludeDir.^}",
               s"-L${(computecpp.oclcpu / "x64").^}",
               p match {
-                case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS |
-                    Platform.IrisPro580UoBZoo =>
+                case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo =>
                   s"--gcc-toolchain=$EvalGCCPathExpr"
                 case _ => ""
               }
             ).mkString(" ")
           ),
+          Vector.empty,
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
@@ -100,15 +102,33 @@ object BabelStream {
               s"-march=${p.march}",
               s"-I${(dpcpp.dpcpp / "include" / "sycl" / "CL").^}",
               s"${p match {
-                case Platform.RomeIsambardMACS | Platform.CxlIsambardMACS | Platform.IrisPro580UoBZoo =>
+                case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo =>
                   s"--gcc-toolchain=$EvalGCCPathExpr"
                 case _ => ""
               }}"
             ).mkString(" ")
           ),
+          Vector.empty,
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
-      case (ctx, p, hipsycl: Sycl.hipSYCL) => ???
+      case (ctx, p, hipsycl: Sycl.hipSYCL) =>
+        setup(
+          ctx = ctx,
+          platform = p,
+          makeOpts = Vector(
+            "COMPILER"     -> "HIPSYCL",
+            "SYCL_SDK_DIR" -> """$(dirname "$(which syclcc)")/..""",
+            "EXTRA_FLAGS" -> Vector(
+              s"-march=${p.march}",
+              s"${p match {
+                case RomeIsambardMACS | CxlIsambardMACS | V100IsambardMACS =>
+                  s"--gcc-toolchain=$EvalGCCPathExpr"
+                case _ => ""
+              }}"
+            ).mkString(" ")
+          ),
+          extraModules = Vector(s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0")
+        )
     }
   )
 }

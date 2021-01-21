@@ -14,7 +14,7 @@ object CloverLeaf {
   ) = {
 
     val (mpiEnvs, mpiPath) = platform match {
-      case RomeIsambardMACS | CxlIsambardMACS =>
+      case RomeIsambardMACS | CxlIsambardMACS | V100IsambardMACS =>
         Vector(
           prependFileEnvs("LD_LIBRARY_PATH", IsambardMACS.oneapiLibFabricPath / "lib"),
           prependFileEnvs("FI_PROVIDER_PATH", IsambardMACS.oneapiLibFabricPath / "lib" / "prov")

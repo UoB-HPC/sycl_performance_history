@@ -106,6 +106,19 @@ object Platform {
         submit = lustreNCpu("clxq", 40)
       )
 
+    case object V100IsambardMACS // sm_70
+        extends Platform(
+            name = "v100-isambard",
+            abbr = "v100",
+            march = "skylake-avx512",
+            deviceSubstring = "OpenMP",
+            hasQueue = true,
+            isCPU = false,
+            setup = _ => IsambardMACS.setupModules,
+            streamArraySize = Some(math.pow(2, 29).toLong),
+            submit = lustreNCpu("clxq", 40)
+        )
+
   case object UoBZoo {
     val oneapiMPIPath: File =
       File("/nfs/software/x86_64/intel/oneapi/2021.1/mpi/2021.1.1")

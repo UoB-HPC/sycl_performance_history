@@ -66,13 +66,28 @@ object Sycl {
     def include: String    = (dpcpp / "include" / "sycl").!!
 
   }
-  case class hipSYCL(path: File, key: String, abbr: String, ver: String, released: LocalDate)
-      extends Sycl {
-    def name: String = "hipsycl"
-    def paths        = Vector("dir" -> path)
+  case class hipSYCL(commit: String, released: LocalDate) extends Sycl {
+
+    override def key: String  = s"hipsycl-$released-$commit"
+    override def abbr: String = s"hsc-$commit"
+    override def ver: String  = s"$released-$commit"
+    def name: String          = "hipsycl"
+    def paths                 = Vector()
   }
 
   def list(oclcpuDir: File, dpcppDir: File, computecppDir: File): Vector[Sycl] = {
+
+    val hipsycls = Vector(
+      hipSYCL("2daf840", LocalDate.of(2019, 9, 24)),
+      hipSYCL("d5d7de0", LocalDate.of(2019, 12, 3)),
+      hipSYCL("4eb5a17", LocalDate.of(2020, 1, 29)),
+      hipSYCL("fcb2629", LocalDate.of(2020, 3, 30)),
+      hipSYCL("b82f183", LocalDate.of(2020, 5, 27)),
+      hipSYCL("ad88fc8", LocalDate.of(2020, 7, 31)),
+      hipSYCL("a9de70a", LocalDate.of(2020, 9, 30)),
+      hipSYCL("81b750e", LocalDate.of(2020, 11, 30)),
+      hipSYCL("cff515c", LocalDate.of(2020, 12, 10))
+    )
 
     def listDirs(f: File) = f.list
       .filter(_.isDirectory)
@@ -131,7 +146,7 @@ object Sycl {
         }
       }
 
-    dpcpp ++ computecpp
+    hipsycls ++ dpcpp ++ computecpp
 
   }
 

@@ -165,6 +165,7 @@ object Main {
   val Platforms = Vector(
     Platform.RomeIsambardMACS,
     Platform.CxlIsambardMACS,
+    Platform.V100IsambardMACS,
     Platform.IrisPro580UoBZoo,
     Platform.IrisXeMAXDevCloud,
     Platform.UHDP630DevCloud,
