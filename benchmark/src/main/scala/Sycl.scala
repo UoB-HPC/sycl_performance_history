@@ -82,7 +82,7 @@ object Sycl {
       hipSYCL("d5d7de0", LocalDate.of(2019, 12, 3)),
       hipSYCL("4eb5a17", LocalDate.of(2020, 1, 29)),
       hipSYCL("fcb2629", LocalDate.of(2020, 3, 30)),
-      hipSYCL("b82f183", LocalDate.of(2020, 5, 27)),
+      hipSYCL("5352add", LocalDate.of(2020, 6, 23)),
       hipSYCL("ad88fc8", LocalDate.of(2020, 7, 31)),
       hipSYCL("a9de70a", LocalDate.of(2020, 9, 30)),
       hipSYCL("81b750e", LocalDate.of(2020, 11, 30)),
