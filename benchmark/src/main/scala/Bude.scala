@@ -30,13 +30,17 @@ object Bude {
           ): _*
         ) :+
         s"cp ${(repo / "build" / "bude").^?} ${repo.^?}",
-      run = Vector(
-        s"cd ${ctx.wd.^?}",
-        s"${(repo / "bude").^?} -n 65536 -i 8 " +
-          s"--deck ${(ctx.wd / "data" / "bm1").^?} " +
-          s"--wgsize 0 " +
-          s"""--device "$device""""
-      )
+      run = (platform match {
+        case Platform.V100IsambardMACS => Vector("nvidia-smi")
+        case _                         => Vector.empty
+      }) ++
+        Vector(
+          s"cd ${ctx.wd.^?}",
+          s"${(repo / "bude").^?} -n 65536 -i 8 " +
+            s"--deck ${(ctx.wd / "data" / "bm1").^?} " +
+            s"--wgsize 0 " +
+            s"""--device "$device""""
+        )
     )
 
   }
@@ -130,7 +134,10 @@ object Bude {
                       case bad              => throw new Exception(s"Unsupported platform for this config: $bad")
                     })
                   )),
-          extraModules = Vector(
+          extraModules = (p match {
+            case V100IsambardMACS => Vector("module load cuda10.1/toolkit/10.1.243")
+            case _                => Vector()
+          }) ++ Vector(
             "module load llvm/10.0",
             s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0"
           ),
