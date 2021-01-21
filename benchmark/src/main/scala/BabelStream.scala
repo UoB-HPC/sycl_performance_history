@@ -53,7 +53,7 @@ object BabelStream {
     name = "babelstream",
     abbr = "s",
     gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
-    timeout = 5 minute,
+    timeout = 30 minute,
     extractResult = out => {
       if (out.contains("Validation failed on")) Left("Validation failed")
       else
