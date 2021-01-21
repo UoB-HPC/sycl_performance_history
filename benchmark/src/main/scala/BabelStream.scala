@@ -12,6 +12,7 @@ object BabelStream {
       platform: Platform,
       makeOpts: Vector[(String, String)],
       extraModules: Vector[String],
+      deviceSubstring: Option[String],
       exports: String*
   ) = {
 
@@ -32,9 +33,16 @@ object BabelStream {
         ),
       run = Vector(
         s"cd ${ctx.wd.^?}",
-        s"$exe --list",
-        s"""export DEVICE=$$($exe --list | grep -a "${platform.deviceSubstring}" | cut -d ':' -f1 | head -n 1)""",
-        s"""echo "Using device $$DEVICE which matches substring ${platform.deviceSubstring}" """,
+        s"$exe --list"
+      ) ++ (deviceSubstring match {
+        case Some(substring) =>
+          Vector(
+            s"""export DEVICE=$$($exe --list | grep -a "$substring" | cut -d ':' -f1 | head -n 1)""",
+            s"""echo "Using device $$DEVICE which matches substring $substring" """
+          )
+        case None =>
+          Vector("export DEVICE=0")
+      }) ++ Vector(
         s"$exe --device $$DEVICE ${platform.streamArraySize.fold("")(n => s"--arraysize $n")}"
       )
     )
@@ -62,9 +70,9 @@ object BabelStream {
     run = {
       case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          ctx,
-          p,
-          Vector(
+          ctx = ctx,
+          platform = p,
+          makeOpts = Vector(
             "COMPILER"     -> "COMPUTECPP",
             "TARGET"       -> "CPU",
             "SYCL_SDK_DIR" -> computecpp.sdk,
@@ -82,15 +90,16 @@ object BabelStream {
               }
             ).mkString(" ")
           ),
-          Vector.empty,
+          extraModules = Vector.empty,
+          deviceSubstring = Some(p.deviceSubstring),
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
       case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          ctx,
-          p,
-          Vector(
+          ctx = ctx,
+          platform = p,
+          makeOpts = Vector(
             "COMPILER"           -> "DPCPP",
             "TARGET"             -> "CPU",
             "SYCL_DPCPP_CXX"     -> dpcpp.`clang++`,
@@ -108,7 +117,8 @@ object BabelStream {
               }}"
             ).mkString(" ")
           ),
-          Vector.empty,
+          extraModules = Vector.empty,
+          deviceSubstring = Some(p.deviceSubstring),
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
       case (ctx, p, hipsycl: Sycl.hipSYCL) =>
@@ -130,7 +140,8 @@ object BabelStream {
           extraModules = Vector(
             "module load llvm/10.0",
             s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0"
-          )
+          ),
+          deviceSubstring = None
         )
     }
   )
