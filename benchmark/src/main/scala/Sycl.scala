@@ -78,15 +78,16 @@ object Sycl {
   def list(oclcpuDir: File, dpcppDir: File, computecppDir: File): Vector[Sycl] = {
 
     val hipsycls = Vector(
-      hipSYCL("2daf840", LocalDate.of(2019, 9, 24)),
+      hipSYCL("2daf840", LocalDate.of(2019, 9, 24)), // 0.8
       hipSYCL("d5d7de0", LocalDate.of(2019, 12, 3)),
       hipSYCL("4eb5a17", LocalDate.of(2020, 1, 29)),
-      hipSYCL("fcb2629", LocalDate.of(2020, 3, 30)),
-      hipSYCL("5352add", LocalDate.of(2020, 6, 23)),
-      hipSYCL("ad88fc8", LocalDate.of(2020, 7, 31)),
-      hipSYCL("a9de70a", LocalDate.of(2020, 9, 30)),
-      hipSYCL("81b750e", LocalDate.of(2020, 11, 30)),
-      hipSYCL("cff515c", LocalDate.of(2020, 12, 10))
+      hipSYCL("3e5f6986", LocalDate.of(2020, 3, 11)),
+      hipSYCL("1449a73c", LocalDate.of(2020, 5, 27)),
+      hipSYCL("0d92d6d8", LocalDate.of(2020, 7, 23)),
+      hipSYCL("a4b0d4a2", LocalDate.of(2020, 9, 11)), // 0.8.2
+      hipSYCL("81b750e", LocalDate.of(2020, 11, 30)), // /w boost
+      hipSYCL("cff515c", LocalDate.of(2020, 12, 10)), // /w boost  0.9
+      hipSYCL("c55781ed", LocalDate.of(2021, 1, 18))  // /w boost edge
     )
 
     def listDirs(f: File) = f.list
