@@ -136,7 +136,18 @@ object BabelStream {
                 case _ => ""
               }}"
             ).mkString(" ")
-          ),
+          ) ++ (if (p.isCPU)
+                  Vector(
+                    "TARGET" -> "CPU"
+                  )
+                else
+                  Vector(
+                    "TARGET" -> "NVIDIA",
+                    "ARCH" -> (p match {
+                      case V100IsambardMACS => "sm_70"
+                      case bad              => throw new Exception(s"Unsupported platform for this config: $bad")
+                    })
+                  )),
           extraModules = Vector(
             "module load llvm/10.0",
             s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0"

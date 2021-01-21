@@ -121,7 +121,7 @@ object Bude {
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
             }}",
-            "NUM_TD_PER_THREAD" -> "2"
+            "NUM_TD_PER_THREAD" -> "16"
           ) ++ (if (p.isCPU)
                   Vector(
                     "HIPSYCL_PLATFORM" -> "cpu"
@@ -134,10 +134,7 @@ object Bude {
                       case bad              => throw new Exception(s"Unsupported platform for this config: $bad")
                     })
                   )),
-          extraModules = (p match {
-            case V100IsambardMACS => Vector("module load cuda10.1/toolkit/10.1.243")
-            case _                => Vector()
-          }) ++ Vector(
+          extraModules = Vector(
             "module load llvm/10.0",
             s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0"
           ),

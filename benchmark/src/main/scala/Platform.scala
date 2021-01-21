@@ -114,7 +114,9 @@ object Platform {
         deviceSubstring = "OpenMP",
         hasQueue = true,
         isCPU = false,
-        setup = _ => IsambardMACS.setupModules,
+        setup = _ =>
+          IsambardMACS.setupModules :+
+            "module load cuda10.1/toolkit/10.1.243",
         streamArraySize = Some(math.pow(2, 29).toLong),
         submit = lustreTemplate("voltaq", "1")
       )
