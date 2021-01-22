@@ -37,7 +37,7 @@ object Main {
       s"cd ${workingDir.^?}",
       s"if [[ -d ${(repoRoot / ".git").^?} ]];then",
       s"cd ${repoRoot.^?}",
-      "git fetch",
+      "git pull",
       "else",
       s"""git clone -b "${project.gitRepo._2}" "${project.gitRepo._1}" ${repoRoot.^?} """,
       s"cd ${repoRoot.^?}",
