@@ -45,7 +45,9 @@ object CloverLeaf {
           "MPI_AS_LIBRARY"    -> "ON",
           "MPI_C_LIB_DIR"     -> (mpiPath / "lib").!!,
           "MPI_C_INCLUDE_DIR" -> (mpiPath / "include").!!,
-          "MPI_C_LIB"         -> (mpiPath / "lib" / "release" / "libmpi.so").!!
+          "MPI_C_LIB"         -> (mpiPath / "lib" / "release" / "libmpi.so").!!,
+          "CMAKE_C_COMPILER"   -> "gcc",
+          "CMAKE_CXX_COMPILER" -> "g++"
         ): _*
       ) :+ s"cp ${(ctx.wd / "build" / "cloverleaf").^?} ${ctx.wd.^?}",
       Vector(
