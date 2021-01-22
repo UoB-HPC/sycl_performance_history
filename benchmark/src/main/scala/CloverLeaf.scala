@@ -10,6 +10,8 @@ object CloverLeaf {
       ctx: Context,
       platform: Platform,
       cmakeOpts: Vector[(String, String)],
+      extraModules: Vector[String],
+      device: String,
       exports: String*
   ) = {
 
@@ -33,7 +35,9 @@ object CloverLeaf {
     }
 
     RunSpec(
-      platform.setup(ctx.platformBinDir) ++ (exports ++ mpiEnvs).map(e => s"export $e"),
+      platform.setup(ctx.platformBinDir) ++ extraModules ++ (exports ++ mpiEnvs).map(e =>
+        s"export $e"
+      ),
       s"cd ${ctx.wd.^?}" +: cmake(
         target = "cloverleaf",
         build = ctx.wd / "build",
@@ -48,7 +52,7 @@ object CloverLeaf {
         s"cd ${ctx.wd.^?}",
         s"${(ctx.wd / "cloverleaf").^?} " +
           s"--file ${(ctx.wd / "InputDecks" / "clover_bm16.in").^?} " +
-          s"""--device "${platform.deviceSubstring}""""
+          s"""--device "$device""""
       )
     )
 
@@ -76,9 +80,9 @@ object CloverLeaf {
     run = {
       case (ctx, p, computecpp: Sycl.ComputeCpp) =>
         setup(
-          ctx,
-          p,
-          Vector(
+          ctx = ctx,
+          platform = p,
+          cmakeOpts = Vector(
             "SYCL_RUNTIME"       -> "COMPUTECPP",
             "ComputeCpp_DIR"     -> computecpp.sdk,
             "CMAKE_C_COMPILER"   -> "gcc",
@@ -90,14 +94,16 @@ object CloverLeaf {
               Vector("OpenCL_LIBRARY" -> (computecpp.oclcpu / "x64" / "libOpenCL.so").^)
             case _ => Vector.empty
           }),
+          extraModules = Vector.empty,
+          device = p.deviceSubstring,
           (if (p.isCPU) computecpp.cpuEnvs else computecpp.gpuEnvs): _*
         )
 
       case (ctx, p, dpcpp: Sycl.DPCPP) =>
         setup(
-          ctx,
-          p,
-          Vector(
+          ctx = ctx,
+          platform = p,
+          cmakeOpts = Vector(
             "SYCL_RUNTIME"  -> "DPCPP",
             "DPCPP_BIN"     -> dpcpp.`clang++`,
             "DPCPP_INCLUDE" -> dpcpp.include,
@@ -107,9 +113,41 @@ object CloverLeaf {
               case _ => ""
             }}"
           ),
+          extraModules = Vector.empty,
+          device = p.deviceSubstring,
           (if (p.isCPU) dpcpp.cpuEnvs else dpcpp.gpuEnvs): _*
         )
-      case (ctx, p, hipsycl: Sycl.hipSYCL) => ???
+      case (ctx, p, hipsycl: Sycl.hipSYCL) =>
+        setup(
+          ctx = ctx,
+          platform = p,
+          cmakeOpts = Vector(
+            "SYCL_RUNTIME"        -> "HIPSYCL",
+            "HIPSYCL_INSTALL_DIR" -> """$(dirname "$(which syclcc)")/..""",
+            "HIPSYCL_PLATFORM"    -> (if (p.isCPU) "cpu" else "gpu"),
+            "CXX_EXTRA_FLAGS" -> s"-march=${p.march} ${p match {
+              case RomeIsambardMACS | CxlIsambardMACS | V100IsambardMACS =>
+                s"--gcc-toolchain=$EvalGCCPathExpr"
+              case _ => ""
+            }}",
+          ) ++ (if (p.isCPU)
+                  Vector(
+                    "HIPSYCL_PLATFORM" -> "cpu"
+                  )
+                else
+                  Vector(
+                    "HIPSYCL_PLATFORM" -> "cuda",
+                    "HIPSYCL_GPU_ARCH" -> (p match {
+                      case V100IsambardMACS => "sm_70"
+                      case bad              => throw new Exception(s"Unsupported platform for this config: $bad")
+                    })
+                  )),
+          extraModules = Vector(
+            "module load llvm/10.0",
+            s"module load hipsycl/${hipsycl.commit}/gcc-10.2.0"
+          ),
+          device = "0" // pick the first and presumably only one
+        )
     }
   )
 }
