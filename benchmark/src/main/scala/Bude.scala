@@ -61,9 +61,12 @@ object Bude {
           case x if x > ErrorThresholdPct =>
             Left(s"Error exceeded threshold, got $x, need < $ErrorThresholdPct")
           case _ =>
+//            out.linesIterator
+//              .collect { case s"- Kernel time: ${ms} ms" => ms.trim }
+//              .ensureOne("kernel time")
             out.linesIterator
-              .collect { case s"- Kernel time: ${ms} ms" => ms.trim }
-              .ensureOne("kernel time")
+              .collect { case s"- GFLOP/s: ${glops}" => glops.trim }
+              .ensureOne("gflops")
         }
     },
     run = {

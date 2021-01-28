@@ -72,7 +72,7 @@ object CloverLeaf {
         xs.indexWhere(_.startsWith("Done"))
       ).toList match {
         case s"Test problem ${_} is within ${_} of the expected solution" ::
-            "This test is considered PASSED" ::
+             ("This test is considered PASSED" |  "This test is considered NOT PASSED") ::
             s"Wall clock ${wallclockSec}" ::
             s"First step overhead ${_}" :: Nil =>
           Right(wallclockSec)

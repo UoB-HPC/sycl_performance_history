@@ -253,7 +253,8 @@ object Main {
 
         op match {
           case "tab" =>
-            val resultsDir = (out / "results").createDirectoryIfNotExists()
+            val csvOut = out.sibling("results").createDirectoryIfNotExists()
+
             for {
               project       <- projects
               platform      <- platforms
@@ -263,7 +264,7 @@ object Main {
               // impl, released, value
               val rows = for {
                 sycl <- sycls
-                result = resultsDir / s"${project.name}-${platform.name}-${sycl.key}.out"
+                result = out / s"${project.name}-${platform.name}-${sycl.key}.out"
                 if result.exists
               } yield List(
                 sycl.ver,
@@ -276,7 +277,7 @@ object Main {
                 }
               ).mkString(",")
               if (rows.nonEmpty) {
-                val csv = resultsDir / s"${project.name}-${platform.name}-$name.csv"
+                val csv  = csvOut / s"${project.name}-${platform.name}-$name.csv"
                 println(s"$csv = ${rows.size} rows")
                 csv.overwrite(rows.mkString("\n"))
               }
@@ -317,7 +318,10 @@ object Main {
   }
 
   def main(args: Array[String]): Unit =
-    run(args.toList)
+    run(
+      "tab" :: "all" :: "*" :: "*" :: "/home/tom/sycl_performance_history_paper/data/raw/" :: "1" :: Nil
+    )
+//    run(args.toList)
 
 //    run(
 //      "bench" :: "babelstream" :: "computecpp*-oclcpu-202012" :: "amd-local" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil
@@ -326,9 +330,6 @@ object Main {
 //    run("prime" :: "/home/tom/sycl_performance_history/computecpp/" :: Nil)
 
 //    run(args.toList)
-//    run(
-//      "tab" :: "cloverleaf" :: "*" :: "*" :: "/home/tom/Desktop/res/" :: "1" :: Nil
-//    )
 
   //      "bench" :: "all" :: "dpcpp-2021*-oclcpu-202012" :: "local-amd" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil
 

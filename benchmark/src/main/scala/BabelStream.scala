@@ -55,12 +55,12 @@ object BabelStream {
     gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
     timeout = 30 minute,
     extractResult = out => {
-      if (out.contains("Validation failed on")) Left("Validation failed")
-      else
+//      if (out.contains("Validation failed on"))  Left("Validation failed")
+//      else
         out.linesIterator
           .flatMap { line =>
             line.split("\\s+").toList match {
-              case "Dot" :: peakMBytesPerSec :: minSec :: maxSec :: avgSec :: Nil =>
+              case "Triad" :: peakMBytesPerSec :: minSec :: maxSec :: avgSec :: Nil =>
                 Some(peakMBytesPerSec)
               case xs => None
             }
