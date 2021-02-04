@@ -318,10 +318,10 @@ object Main {
   }
 
   def main(args: Array[String]): Unit =
-    run(
-      "tab" :: "all" :: "*" :: "*" :: "/home/tom/sycl_performance_history_paper/data/raw/" :: "1" :: Nil
-    )
-//    run(args.toList)
+//    run(
+//      "tab" :: "all" :: "*" :: "*" :: "/home/tom/sycl_performance_history_paper/data/raw/" :: "1" :: Nil
+//    )
+    run(args.toList)
 
 //    run(
 //      "bench" :: "babelstream" :: "computecpp*-oclcpu-202012" :: "amd-local" :: "./test" :: sys.runtime.availableProcessors.toString :: Nil
