@@ -42,10 +42,10 @@ object CloverLeaf {
         target = "cloverleaf",
         build = ctx.wd / "build",
         cmakeOpts ++ Vector(
-          "MPI_AS_LIBRARY"    -> "ON",
-          "MPI_C_LIB_DIR"     -> (mpiPath / "lib").!!,
-          "MPI_C_INCLUDE_DIR" -> (mpiPath / "include").!!,
-          "MPI_C_LIB"         -> (mpiPath / "lib" / "release" / "libmpi.so").!!,
+          "MPI_AS_LIBRARY"     -> "ON",
+          "MPI_C_LIB_DIR"      -> (mpiPath / "lib").!!,
+          "MPI_C_INCLUDE_DIR"  -> (mpiPath / "include").!!,
+          "MPI_C_LIB"          -> (mpiPath / "lib" / "release" / "libmpi.so").!!,
           "CMAKE_C_COMPILER"   -> "gcc",
           "CMAKE_CXX_COMPILER" -> "g++"
         ): _*
@@ -72,7 +72,7 @@ object CloverLeaf {
         xs.indexWhere(_.startsWith("Done"))
       ).toList match {
         case s"Test problem ${_} is within ${_} of the expected solution" ::
-             ("This test is considered PASSED" |  "This test is considered NOT PASSED") ::
+            ("This test is considered PASSED" | "This test is considered NOT PASSED") ::
             s"Wall clock ${wallclockSec}" ::
             s"First step overhead ${_}" :: Nil =>
           Right(wallclockSec)
@@ -89,7 +89,11 @@ object CloverLeaf {
             "ComputeCpp_DIR"     -> computecpp.sdk,
             "CMAKE_C_COMPILER"   -> "gcc",
             "CMAKE_CXX_COMPILER" -> "g++",
-            "CXX_EXTRA_FLAGS"    -> s"-march=${p.march}"
+            "CXX_EXTRA_FLAGS" -> (p match {
+              // znver2 is not a valid flag for older LLVM forks
+              case Platform.RomeIsambardMACS => ""
+              case x                         => s"-march=${x.march}"
+            })
           ) ++ (p match {
             case RomeIsambardMACS | CxlIsambardMACS | IrisPro580UoBZoo |
                 IrisXeMAXDevCloud | UHDP630DevCloud =>
@@ -131,7 +135,7 @@ object CloverLeaf {
               case RomeIsambardMACS | CxlIsambardMACS | V100IsambardMACS =>
                 s"--gcc-toolchain=$EvalGCCPathExpr"
               case _ => ""
-            }}",
+            }}"
           ) ++ (if (p.isCPU)
                   Vector(
                     "HIPSYCL_PLATFORM" -> "cpu"
