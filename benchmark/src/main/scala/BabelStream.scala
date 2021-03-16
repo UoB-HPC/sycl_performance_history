@@ -52,7 +52,7 @@ object BabelStream {
   val Def = Project(
     name = "babelstream",
     abbr = "s",
-    gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "computecpp_fix",
+    gitRepo = "https://github.com/UoB-HPC/BabelStream.git" -> "main",
     timeout = 30 minute,
     extractResult = out => {
 //      if (out.contains("Validation failed on"))  Left("Validation failed")
@@ -102,7 +102,7 @@ object BabelStream {
           makeOpts = Vector(
             "COMPILER"           -> "DPCPP",
             "TARGET"             -> "CPU",
-            "SYCL_DPCPP_CXX"     -> dpcpp.`clang++`,
+            "SYCL_DPCPP_SYCLCXX"     -> dpcpp.`clang++`,
             "SYCL_DPCPP_INCLUDE" -> s"-I${dpcpp.include}",
             "EXTRA_FLAGS" -> Vector(
               s"-DCL_TARGET_OPENCL_VERSION=220",
